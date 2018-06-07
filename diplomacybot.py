@@ -2,6 +2,7 @@ from slackbot_settings import API_TOKEN
 import time
 import re
 from slackclient import SlackClient
+from plugins import start
 
 testChannel = "G1D5QB988"
 diplomacy = "CB227T8EQ"
@@ -40,12 +41,13 @@ def handle_command(command, channel):
     """
     # Default response is help text for the user
     default_response = "Not sure what you mean. Try *{}*.".format(EXAMPLE_COMMAND)
-
+    commands = [i for i in plugins]
     # Finds and executes the given command, filling in response
     response = None
     # This is where you start to implement more commands!
-    if command.startswith(EXAMPLE_COMMAND):
-        response = "Sure...write some more code then I can do that!"
+    for i in commands:
+        if command.startswith(i):
+            response = "Sure...write some more code then I can do that!"
 
     # Sends the response back to the channel
     sc.api_call(
@@ -53,7 +55,6 @@ def handle_command(command, channel):
         channel=channel,
         text=response or default_response
     )
-
 
 if __name__ == "__main__":
     if sc.rtm_connect(with_team_state=False):
