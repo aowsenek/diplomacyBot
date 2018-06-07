@@ -13,7 +13,6 @@ MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
 
 class diplomacyBot():
     def __init__(self):
-        self.testChannel = "G1D5QB988"
         self.diplomacy = "CB227T8EQ"
 
         self.sc = SlackClient(API_TOKEN)
@@ -28,7 +27,19 @@ class diplomacyBot():
         self.sc.api_call(
                 "chat.postMessage",
                 channel=self.current,
-                text=message)
+                text=message,
+                as_user="true")
+
+    def im(self, player, message):
+        self.sc.api_call(
+                "conversations.open",
+                users=player,
+                return_im="true")
+        self.sc.api_call(
+                "chat.postMessage",
+                channel=player,
+                text=message,
+                as_user="true")
 
     def start(self):
         try:
@@ -59,6 +70,12 @@ class diplomacyBot():
             self.send(playerstr[:-2])
             self.randomizeCountries()
 
+            for i in self.players:
+                print(i, self.players[i])
+                self.im(i,"Your country is "+str(self.players[i][1]))
+                #send map
+                self.im(i,"Send orders in this chat. Valid orders are [unit] ATK [country]")
+
     def addPlayer(self):
         if(self.starting == True):
             info = self.sc.api_call("users.info",user=self.sender)
@@ -71,33 +88,24 @@ class diplomacyBot():
             self.send("A game is not currently starting")
 
     def randomizeCountries(self):
-        self.countries = {1:"Austria",2:"England",3:"France",4:"Germany",5:"Italy",6:"Russia",7:"Turkey"}
+        self.countries = {1: "Russia", 2: "England", 3: "Germany", 4: "France", 5: "Austria", 6: "Italy", 7: "Turkey"}
         assign = random.sample(range(1,8),len(self.players))
         it = 0
         for i in self.players:
             self.players[i][1] = self.countries[assign[it]]
+            it += 1
         print(self.players)
 
+    def takeOrders(self):
+        pass
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    def adjudicate(self):
+        pass
+    def resolve(self):
+        pass
+    def addUnits(self):
+        pass
 
 
 
@@ -108,11 +116,12 @@ class diplomacyBot():
 
     def handle_command(self,command, channel, sender):
         default_response = "I do not understand that command"
-        self.commands = {"start":self.start,"add me":self.addPlayer}#list of commands
+        self.commands = {"start":self.start,"add me":self.addPlayer,"orders":self.takeOrders}#list of commands
         iscommand = False
         #variables needed for functions that can't be passed with the dictionary
         self.current = channel
         self.sender = sender
+        self.command = command
         #executes proper code for given command
         for i in self.commands:
             if command.lower().startswith(i):
@@ -133,6 +142,8 @@ class diplomacyBot():
                 user_id, message = self.parse_direct_mention(event["text"])
                 if user_id == self.bot_id:
                     return message, event["channel"], event["user"]
+                elif event["channel"][0] == "D":
+                    return event["text"], event["channel"], event["user"]
         return None, None
 
     def parse_direct_mention(self,message_text):
