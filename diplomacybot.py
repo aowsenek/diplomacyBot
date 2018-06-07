@@ -18,6 +18,8 @@ class diplomacyBot():
         self.sc = SlackClient(API_TOKEN)
         self.bot_id = None
         self.current = None
+        self.starting=False
+        self.players={}
         self.run()
 
     def send(self,message):
@@ -30,11 +32,27 @@ class diplomacyBot():
         try:
             info = self.sc.api_call("channels.info",channel=self.current)
             if(info['channel']['id'] == self.diplomacy):
-                self.send("Starting Game....")
+                pass
             else:
                 self.send("This isn't the diplomacy channel")
+                return
         except:
             self.send("This isn't the diplomacy channel")
+            return
+        if(self.starting == False):
+            print(info)
+            self.send("@channel A new game of Diplomacy is starting...")
+            self.send("Message \"@bender add me\" if you want to join the game")
+            self.send("Message \"@bender Start\" when all members have registered and you are ready to play")
+            self.starting = True
+        else:
+            self.send("Starting Game...")
+            self.send("Players are "+str(self.players))
+
+    def addPlayer(self):
+        self.players[self.sender] = ""
+#        info = self.sc.api_call("users.info",user=self.sender)
+        self.send("Added player")
 
 
 
@@ -65,25 +83,21 @@ class diplomacyBot():
 
 
 
-
-    def handle_command(self,command, channel):
+    def handle_command(self,command, channel, sender):
         default_response = "I do not understand that command"
-        response = None
-        self.current = channel
-        self.commands = {"start":self.start}
+        self.commands = {"start":self.start,"add me":self.addPlayer}#list of commands
         iscommand = False
-
+        #variables needed for functions that can't be passed with the dictionary
+        self.current = channel
+        self.sender = sender
+        #executes proper code for given command
         for i in self.commands:
-            if command.startswith(i):
+            if command.lower().startswith(i):
                 self.commands[i]()
                 iscommand = True
 
         if(not iscommand):
-            self.sc.api_call(
-                "chat.postMessage",
-                channel=channel,
-                text=default_response
-            )
+            self.send(default_reponse)
 
     def parse_bot_commands(self,slack_events):
         """
@@ -95,7 +109,7 @@ class diplomacyBot():
             if event["type"] == "message" and not "subtype" in event:
                 user_id, message = self.parse_direct_mention(event["text"])
                 if user_id == self.bot_id:
-                    return message, event["channel"]
+                    return message, event["channel"], event["user"]
         return None, None
 
     def parse_direct_mention(self,message_text):
@@ -112,9 +126,11 @@ class diplomacyBot():
             print("Starter Bot connected and running!")
             self.bot_id = self.sc.api_call("auth.test")["user_id"]
             while True:
-                command, channel = self.parse_bot_commands(self.sc.rtm_read())
-                if command:
-                     self.handle_command(command, channel)
+                try:
+                    command, channel, user = self.parse_bot_commands(self.sc.rtm_read())
+                    if command:
+                         self.handle_command(command, channel, user)
+                except: pass
                 time.sleep(RTM_READ_DELAY)
         else:
             print("Connection failed. Exception traceback printed above.")

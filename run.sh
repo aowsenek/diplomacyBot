@@ -1,1 +1,1 @@
-python3 bender.py
+python3 diplomacybot.py
