@@ -50,9 +50,9 @@ for i in range(65, 79):
 setColor(79, IMPASSABLE)
 
 im = Image.open('diplomacy_map.png')
-output_map.putpalette(palette)
+im.putpalette(palette)
 
-draw = ImageDraw.Draw(output_map)
+draw = ImageDraw.Draw(im)
 draw.text((0, 0),"Diplomacy Map Test",(0,0,0))
 
-output_map.show()
+im.show()
