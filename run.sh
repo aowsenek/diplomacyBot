@@ -1,1 +1,2 @@
-python3 bender.py
+exec ed
+python3 diplomacybot.py
