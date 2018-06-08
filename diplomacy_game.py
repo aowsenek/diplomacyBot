@@ -16,18 +16,89 @@ BRITAIN = (255, 180, 255)
 BORDER = (0, 0, 0)
 
 class Tile:
-    def __init__(self, index, adjacent, controller):
+    def __init__(self, index, name, adjacent, supply, controller):
         self.index = index
+        self.name = name
         self.adjacent = adjacent
+        self.supply = supply
         self.controller = controller
 
 tiles = {
-    # (index, full name, [adjacent tiles], controller)
-    'North Atlantic Ocean': Tile(1, ['Norweigan Sea', 'Irish Sea', 'Mid Atlantic', 'Clyde'], None),
-    'Norweigan Sea': Tile(2, ['North Atlantic Sea', 'Barents Sea', 'North Sea', 'Norway'], None),
-    'Barents Sea': Tile(3, ['Norweigan Sea', 'Norway', 'Saint Petersburg'], None),
-    'Gulf of Bothnia': Tile(4, ['Sweden', 'Finland', 'Saint Petersburg', 'Baltic Sea', 'Livonia'], None),
-    'North Sea': Tile(5, ['Norweigan Sea', 'Norway', 'Skagerrak', 'Denmark', 'Helgoland Bight', 'English Channel', 'Edinburgh', 'York', 'London', 'Holland', 'Belgium'], None),
+    # (index, full name, [adjacent tiles], supply, controller)
+    'NAO': Tile(4, None, ['NWG', 'IRI', 'MAO', 'CLY', 'LVP'], False, None),
+    'NWG': Tile(5, None, ['NAO', 'CLY', 'EDL', 'NTH', 'NWY', 'BAR'], False, None),
+    'BAR': Tile(6, None, ['NWG', 'NWY', 'STP'], False, None),
+    'BOT': Tile(7, None, ['SWE', 'BAL', 'LVN', 'STP', 'FIN'], False, None),
+    'NTH': Tile(8, None, ['NWG', 'EDL', 'YOR', 'LON', 'BEL', 'HOL', 'HEL', 'DEN', 'SKA', 'NWY'], False, None),
+    'SKA': Tile(9, None, [], False, None),
+    'IRI': Tile(10, None, [], False, None),
+    'HEL': Tile(11, None, [], False, None),
+    'BAL': Tile(12, None, [], False, None),
+    'MAO': Tile(13, None, [], False, None),
+    'BLA': Tile(15, None, [], False, None),
+    'ADR': Tile(16, None, [], False, None),
+    'LYO': Tile(17, None, [], False, None),
+    'TYS': Tile(18, None, [], False, None),
+    'WES': Tile(19, None, [], False, None),
+    'ION': Tile(20, None, [], False, None),
+    'AEG': Tile(21, None, [], False, None),
+    'EAS': Tile(22, None, [], False, None),
+    'STP': Tile(23, None, [], False, None),
+    'FIN': Tile(24, None, [], False, None),
+    'MOS': Tile(25, None, [], False, None),
+    'LVN': Tile(26, None, [], False, None),
+    'WAR': Tile(27, None, [], False, None),
+    'SEV': Tile(28, None, [], False, None),
+    'UKR': Tile(29, None, [], False, None),
+    'CLY': Tile(30, None, [], False, None),
+    'EDL': Tile(31, None, [], False, None),
+    'LVP': Tile(32, None, [], False, None),
+    'YOR': Tile(33, None, [], False, None),
+    'WAL': Tile(34, None, [], False, None),
+    'LON': Tile(35, None, [], False, None),
+    'KIE': Tile(36, None, [], False, None),
+    'BER': Tile(37, None, [], False, None),
+    'PRU': Tile(38, None, [], False, None),
+    'RUH': Tile(39, None, [], False, None),
+    'MUN': Tile(40, None, [], False, None),
+    'SIL': Tile(41, None, [], False, None),
+    'BRE': Tile(42, None, [], False, None),
+    'PIC': Tile(43, None, [], False, None),
+    'PAR': Tile(44, None, [], False, None),
+    'BUR': Tile(45, None, [], False, None),
+    'GAS': Tile(46, None, [], False, None),
+    'MAR': Tile(47, None, [], False, None),
+    'BOH': Tile(48, None, [], False, None),
+    'GAL': Tile(49, None, [], False, None),
+    'TYR': Tile(50, None, [], False, None),
+    'VIE': Tile(51, None, [], False, None),
+    'BUD': Tile(52, None, [], False, None),
+    'TRI': Tile(53, None, [], False, None),
+    'PIE': Tile(54, None, [], False, None),
+    'VEN': Tile(55, None, [], False, None),
+    'TUS': Tile(56, None, [], False, None),
+    'ROM': Tile(57, None, [], False, None),
+    'APU': Tile(58, None, [], False, None),
+    'NAP': Tile(59, None, [], False, None),
+    'CON': Tile(60, None, [], False, None),
+    'ANK': Tile(61, None, [], False, None),
+    'ARM': Tile(62, None, [], False, None),
+    'SMY': Tile(63, None, [], False, None),
+    'SYR': Tile(64, None, [], False, None),
+    'NWY': Tile(65, None, [], False, None),
+    'SWE': Tile(66, None, [], False, None),
+    'DEN': Tile(67, None, [], False, None),
+    'HOL': Tile(68, None, [], False, None),
+    'BEL': Tile(69, None, [], False, None),
+    'SPA': Tile(70, None, [], False, None),
+    'POR': Tile(71, None, [], False, None),
+    'RUM': Tile(72, None, [], False, None),
+    'SER': Tile(73, None, [], False, None),
+    'BUL': Tile(74, None, [], False, None),
+    'ALB': Tile(75, None, [], False, None),
+    'GRE': Tile(76, None, [], False, None),
+    'NAF': Tile(77, None, [], False, None),
+    'TUN': Tile(78, None, [], False, None),
 }
 
 palette = np.zeros(256 * 3, dtype=np.uint8)
@@ -87,13 +158,18 @@ def centerOfMass(index):
 im_out = Image.fromarray(pix)
 im_out.putpalette(palette)
 draw = ImageDraw.Draw(im_out)
-for i in range(4, 79):
-    x, y = coordinates[i]
-    # print('%i:(%f,%f)' % (i, x, y))
+# for i in range(4, 79):
+#     x, y = coordinates[i]
+#     # print('%i:(%f,%f)' % (i, x, y))
+#     font = ImageFont.truetype("arial.ttf", 40)
+#     draw.text((x, y), '%d' % i, (0,0,0), font=font)
+for name, tile in tiles.items():
+    (x, y) = coordinates[tile.index]
     font = ImageFont.truetype("arial.ttf", 40)
-    draw.text((x, y), '%d' % i, (0,0,0), font=font)
+    draw.text((x, y), name, (0,0,0), font=font)
+
 # font = ImageFont.truetype("arial.ttf", 40)
 # draw.text((0,0), '', (0,0,0), font=font)
 
 im_out.show()
-im_out.save('diplomacy_map_coordinates.png')
+# im_out.save('diplomacy_map_coordinates.png')
