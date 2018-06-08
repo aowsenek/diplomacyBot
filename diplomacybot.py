@@ -57,6 +57,7 @@ class diplomacyBot():
             self.send("Message \"@bender add me\" if you want to join the game")
             self.send("Message \"@bender Start\" when all members have registered and you are ready to play")
             self.starting = True
+            self.addPlayer()
         else:
             self.starting = False
             self.running = True
@@ -71,10 +72,12 @@ class diplomacyBot():
             self.randomizeCountries()
 
             for i in self.players:
-                print(i, self.players[i])
-                self.im(i,"Your country is "+str(self.players[i][1]))
+                ctry = self.players[i][1]
+                self.im(i,"Your country is "+str(self.countries[ctry]))
+                unitLocs = "Your units are: "+"".join([str(j[0])+", " for j in self.unitList[ctry]])
                 #send map
-                self.im(i,"Send orders in this chat. Valid orders are [unit] ATK [country]")
+                self.im(i,unitLocs[:-2])
+                self.im(i,"Send orders here, so they are private.\n Valid orders are in form [unit type] [location of unit] [action] [location of action or second unit] [second unit action] [location of second unit action]")
 
     def addPlayer(self):
         if(self.starting == True):
@@ -89,23 +92,53 @@ class diplomacyBot():
 
     def randomizeCountries(self):
         self.countries = {1: "Russia", 2: "England", 3: "Germany", 4: "France", 5: "Austria", 6: "Italy", 7: "Turkey"}
+        self.unitList = {1:[["stp","f",True],["mos","a",True],["sev","f",True],["war","a",True]],
+                        2:[["edi","f",True],["lvp","a",True],["lon","f",True]],
+                        3:[["kie","f",True],["ber","a",True],["mun","a",True]],
+                        4:[["edi","f",True],["lvp","a",True],["lon","f",True]],
+                        5:[["tri","f",True],["bud","a",True],["vie","a",True]],
+                        6:[["nap","f",True],["rom","a",True],["ven","a",True]],
+                        7:[["ank","f",True],["smy","a",True],["con","a",True]]}
+                        #country: [[unit location, type, on a supplydept]]
         assign = random.sample(range(1,8),len(self.players))
         it = 0
         for i in self.players:
-            self.players[i][1] = self.countries[assign[it]]
+            self.players[i][1] = assign[it]
             it += 1
         print(self.players)
 
-    def takeOrders(self):
+    def orders(self):
+        unitType = self.command[0]
+        loc1 = self.command[1]
+        act1 = self.command[2]
+        loc2 = act2 = loc3 = None
+        units=["a","army","f","fleet"]
+        vc = ["atk","attack","mov","move","-","h","hold","s","support","c","cvy","convoy"]
+        vc = ["a","-","h","s","c"]
+        try:
+            loc2 = self.command[3]
+            act2 = self.command[4]
+            loc3 = self.command[5]
+        except: pass
+        if(act1[0] == vc[2]): #hold
+            pass
+        elif(act1[0] == vc[0] or act1[0] == vc[1]): #attack/move
+            pass
+        elif(act1[0] == vc[3]): #support
+            pass
+        elif(unitType == (units[2] or units[3]) and act1[0] == vc[4]): #convoy
+            pass
+        else:
+            self.im(self.sender," ".join(self.command)+" is not a valid command.")
+
+
+
+    def retreat(self):
         pass
-
-
+    def build(self):
+        pass
     def adjudicate(self):
         pass
-    def resolve(self):
-        pass
-    def addUnits(self):
-        pass
 
 
 
@@ -113,19 +146,18 @@ class diplomacyBot():
 
 
 
-
-    def handle_command(self,command, channel, sender):
+    def handle_command(self,cmd, channel, sender):
         default_response = "I do not understand that command"
-        self.commands = {"start":self.start,"add me":self.addPlayer,"orders":self.takeOrders}#list of commands
+        self.viableCommands = {"start":self.start,"add me":self.addPlayer}#list of commands
         iscommand = False
         #variables needed for functions that can't be passed with the dictionary
         self.current = channel
         self.sender = sender
-        self.command = command
+        self.command = cmd.lower().split()
         #executes proper code for given command
-        for i in self.commands:
-            if command.lower().startswith(i):
-                self.commands[i]()
+        for i in self.viableCommands:
+            if cmd.lower().startswith(i):
+                self.viableCommands[i]()
                 iscommand = True
 
         if(not iscommand):
