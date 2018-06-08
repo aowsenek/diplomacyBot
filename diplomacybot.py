@@ -1,6 +1,7 @@
 from slackbot_settings import API_TOKEN
 import time
 import re
+import random
 from slackclient import SlackClient
 
 
@@ -12,13 +13,13 @@ MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
 
 class diplomacyBot():
     def __init__(self):
-        self.testChannel = "G1D5QB988"
         self.diplomacy = "CB227T8EQ"
 
         self.sc = SlackClient(API_TOKEN)
         self.bot_id = None
         self.current = None
         self.starting=False
+        self.running = False
         self.players={}
         self.run()
 
@@ -26,7 +27,19 @@ class diplomacyBot():
         self.sc.api_call(
                 "chat.postMessage",
                 channel=self.current,
-                text=message)
+                text=message,
+                as_user="true")
+
+    def im(self, player, message):
+        self.sc.api_call(
+                "conversations.open",
+                users=player,
+                return_im="true")
+        self.sc.api_call(
+                "chat.postMessage",
+                channel=player,
+                text=message,
+                as_user="true")
 
     def start(self):
         try:
@@ -40,41 +53,59 @@ class diplomacyBot():
             self.send("This isn't the diplomacy channel")
             return
         if(self.starting == False):
-            print(info)
             self.send("@channel A new game of Diplomacy is starting...")
             self.send("Message \"@bender add me\" if you want to join the game")
             self.send("Message \"@bender Start\" when all members have registered and you are ready to play")
             self.starting = True
         else:
+            self.starting = False
+            self.running = True
             self.send("Starting Game...")
-            self.send("Players are "+str(self.players))
+            if(len(self.players) > 7):
+                self.send("Too many players for this game. Quitting...")
+                self.starting = False
+                self.running = False
+                return
+            playerstr = "Players are "+"".join([str(self.players[i][0])+", " for i in self.players])
+            self.send(playerstr[:-2])
+            self.randomizeCountries()
+
+            for i in self.players:
+                print(i, self.players[i])
+                self.im(i,"Your country is "+str(self.players[i][1]))
+                #send map
+                self.im(i,"Send orders in this chat. Valid orders are [unit] ATK [country]")
 
     def addPlayer(self):
-        self.players[self.sender] = ""
-#        info = self.sc.api_call("users.info",user=self.sender)
-        self.send("Added player")
+        if(self.starting == True):
+            info = self.sc.api_call("users.info",user=self.sender)
+            if(self.sender not in self.players):
+                self.players[self.sender] = [str(info['user']['name']),""]
+                self.send("Added player: "+str(info['user']['name']))
+            else:
+                self.send("You cannot be in the same game twice")
+        else:
+            self.send("A game is not currently starting")
+
+    def randomizeCountries(self):
+        self.countries = {1: "Russia", 2: "England", 3: "Germany", 4: "France", 5: "Austria", 6: "Italy", 7: "Turkey"}
+        assign = random.sample(range(1,8),len(self.players))
+        it = 0
+        for i in self.players:
+            self.players[i][1] = self.countries[assign[it]]
+            it += 1
+        print(self.players)
+
+    def takeOrders(self):
+        pass
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    def adjudicate(self):
+        pass
+    def resolve(self):
+        pass
+    def addUnits(self):
+        pass
 
 
 
@@ -85,11 +116,12 @@ class diplomacyBot():
 
     def handle_command(self,command, channel, sender):
         default_response = "I do not understand that command"
-        self.commands = {"start":self.start,"add me":self.addPlayer}#list of commands
+        self.commands = {"start":self.start,"add me":self.addPlayer,"orders":self.takeOrders}#list of commands
         iscommand = False
         #variables needed for functions that can't be passed with the dictionary
         self.current = channel
         self.sender = sender
+        self.command = command
         #executes proper code for given command
         for i in self.commands:
             if command.lower().startswith(i):
@@ -110,6 +142,8 @@ class diplomacyBot():
                 user_id, message = self.parse_direct_mention(event["text"])
                 if user_id == self.bot_id:
                     return message, event["channel"], event["user"]
+                elif event["channel"][0] == "D":
+                    return event["text"], event["channel"], event["user"]
         return None, None
 
     def parse_direct_mention(self,message_text):
