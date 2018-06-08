@@ -41,6 +41,13 @@ class diplomacyBot():
                 text=message,
                 as_user="true")
 
+    def map(self, player, mapname):
+        self.sc.api_call(
+                  "files.upload",
+                   channels=player,
+                   as_user="true",
+                   filename=mapname,
+                   file=open(mapname, 'rb'))
     def start(self):
         try:
             info = self.sc.api_call("channels.info",channel=self.current)
@@ -57,7 +64,7 @@ class diplomacyBot():
             self.send("Message \"@bender add me\" if you want to join the game")
             self.send("Message \"@bender Start\" when all members have registered and you are ready to play")
             self.starting = True
-            self.addPlayer()
+            #self.addPlayer()
         else:
             self.starting = False
             self.running = True
@@ -76,6 +83,7 @@ class diplomacyBot():
                 self.im(i,"Your country is "+str(self.countries[ctry]))
                 unitLocs = "Your units are: "+"".join([str(j[0])+", " for j in self.unitList[ctry]])
                 #send map
+                #self.map(i, "diplomacy_map.png")
                 self.im(i,unitLocs[:-2])
                 self.im(i,"Send orders here, so they are private.\n Valid orders are in form [unit type] [location of unit] [action] [location of action or second unit] [second unit action] [location of second unit action]")
 
@@ -99,6 +107,8 @@ class diplomacyBot():
                         5:[["tri","f",True],["bud","a",True],["vie","a",True]],
                         6:[["nap","f",True],["rom","a",True],["ven","a",True]],
                         7:[["ank","f",True],["smy","a",True],["con","a",True]]}
+        self.orders = { 1:[],2:[],3:[],4:[],5:[],6:[],7:[]}
+
                         #country: [[unit location, type, on a supplydept]]
         assign = random.sample(range(1,8),len(self.players))
         it = 0
@@ -108,6 +118,18 @@ class diplomacyBot():
         print(self.players)
 
     def orders(self):
+        print("Order Input")
+        ctry = self.players[player][1]
+        self.orders[ctry].append(self.command[:])
+        self.send("Added order: "+" ".join(self.command))
+
+
+
+    def retreat(self):
+        pass
+    def build(self):
+        pass
+    def adjudicate(self):
         unitType = self.command[0]
         loc1 = self.command[1]
         act1 = self.command[2]
@@ -130,14 +152,7 @@ class diplomacyBot():
             pass
         else:
             self.im(self.sender," ".join(self.command)+" is not a valid command.")
-
-
-
-    def retreat(self):
-        pass
-    def build(self):
-        pass
-    def adjudicate(self):
+    def show(self):
         pass
 
 
@@ -148,7 +163,7 @@ class diplomacyBot():
 
     def handle_command(self,cmd, channel, sender):
         default_response = "I do not understand that command"
-        self.viableCommands = {"start":self.start,"add me":self.addPlayer}#list of commands
+        self.viableCommands = {"start":self.start,"add me":self.addPlayer,"f ":self.orders,"a ":self.orders,"adjudicate":self.adjudicate}#list of commands
         iscommand = False
         #variables needed for functions that can't be passed with the dictionary
         self.current = channel
@@ -157,6 +172,7 @@ class diplomacyBot():
         #executes proper code for given command
         for i in self.viableCommands:
             if cmd.lower().startswith(i):
+                print("command detected: ",i)
                 self.viableCommands[i]()
                 iscommand = True
 
@@ -175,6 +191,7 @@ class diplomacyBot():
                 if user_id == self.bot_id:
                     return message, event["channel"], event["user"]
                 elif event["channel"][0] == "D":
+                    print("DM'ed")
                     return event["text"], event["channel"], event["user"]
         return None, None
 
