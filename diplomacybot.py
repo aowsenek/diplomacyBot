@@ -88,15 +88,12 @@ class diplomacyBot():
                 self.im(i,"Send orders here, so they are private.\n Valid orders are in form [unit type] [location of unit] [action] [location of action or second unit] [second unit action] [location of second unit action]")
 
     def addPlayer(self):
-        if(self.starting == True):
-            info = self.sc.api_call("users.info",user=self.sender)
-            if(self.sender not in self.players):
-                self.players[self.sender] = [str(info['user']['name']),""]
-                self.send("Added player: "+str(info['user']['name']))
-            else:
-                self.send("You cannot be in the same game twice")
+        info = self.sc.api_call("users.info",user=self.sender)
+        if(self.sender not in self.players):
+            self.players[self.sender] = [str(info['user']['name']),""]
+            self.send("Added player: "+str(info['user']['name']))
         else:
-            self.send("A game is not currently starting")
+            self.send("You cannot be in the same game twice")
 
     def randomizeCountries(self):
         self.countries = {1: "Russia", 2: "England", 3: "Germany", 4: "France", 5: "Austria", 6: "Italy", 7: "Turkey"}
@@ -117,18 +114,30 @@ class diplomacyBot():
             it += 1
         print(self.players)
 
-    def orders(self):
+    def ordered(self):
         print("Order Input")
-        ctry = self.players[player][1]
+        ctry = self.players[self.sender][1]
+        idx = 0
+        for i in self.orders[ctry]:
+            if(i[1] == self.command[1]):
+                del self.orders[ctry][idx]
+            idx += 1
         self.orders[ctry].append(self.command[:])
-        self.send("Added order: "+" ".join(self.command))
+        print(self.orders[ctry])
+        self.send("Added order: "+" ".join(self.command).upper())
 
+    def show(self):
+        try:
+            if(self.command[1] == "help"):
+                self.im(self.current, "Type \"show current map\" or \"show arrow map\"")
+            elif(self.command[1][0] == "c"):
+                self.map(self.current, "diplomacy_map.png")
+            else:
+                self.im(self.current, "That hasn't been implemented yet")
+        except:
+            self.map(self.current, "diplomacy_map.png")
 
-
-    def retreat(self):
-        pass
-    def build(self):
-        pass
+#=============================== In Progress
     def adjudicate(self):
         unitType = self.command[0]
         loc1 = self.command[1]
@@ -152,7 +161,9 @@ class diplomacyBot():
             pass
         else:
             self.im(self.sender," ".join(self.command)+" is not a valid command.")
-    def show(self):
+    def retreat(self):
+        pass
+    def build(self):
         pass
 
 
@@ -161,9 +172,10 @@ class diplomacyBot():
 
 
 
+#=============================== Event Loop and Bones
     def handle_command(self,cmd, channel, sender):
         default_response = "I do not understand that command"
-        self.viableCommands = {"start":self.start,"add me":self.addPlayer,"f ":self.orders,"a ":self.orders,"adjudicate":self.adjudicate}#list of commands
+        self.viableCommands = {"start":self.start,"add me":self.addPlayer,"f ":self.ordered,"a ":self.ordered,"adjudicate":self.adjudicate,"show":self.show}#list of commands
         iscommand = False
         #variables needed for functions that can't be passed with the dictionary
         self.current = channel
@@ -172,12 +184,15 @@ class diplomacyBot():
         #executes proper code for given command
         for i in self.viableCommands:
             if cmd.lower().startswith(i):
-                print("command detected: ",i)
-                self.viableCommands[i]()
-                iscommand = True
+                if(self.starting == True or self.running == True or i == "start"):
+                    print("command detected: ",i)
+                    self.viableCommands[i]()
+                    iscommand = True
+                else:
+                    self.send("A game is not currently starting")
 
         if(not iscommand):
-            self.send(default_reponse)
+            self.send(default_response)
 
     def parse_bot_commands(self,slack_events):
         """
@@ -190,10 +205,10 @@ class diplomacyBot():
                 user_id, message = self.parse_direct_mention(event["text"])
                 if user_id == self.bot_id:
                     return message, event["channel"], event["user"]
-                elif event["channel"][0] == "D":
+                elif event["channel"][0] == "D" and self.bot_id != event["user"]:
                     print("DM'ed")
                     return event["text"], event["channel"], event["user"]
-        return None, None
+        return None, None, None
 
     def parse_direct_mention(self,message_text):
         """
@@ -209,11 +224,9 @@ class diplomacyBot():
             print("Starter Bot connected and running!")
             self.bot_id = self.sc.api_call("auth.test")["user_id"]
             while True:
-                try:
-                    command, channel, user = self.parse_bot_commands(self.sc.rtm_read())
-                    if command:
-                         self.handle_command(command, channel, user)
-                except: pass
+                command, channel, user = self.parse_bot_commands(self.sc.rtm_read())
+                if command:
+                     self.handle_command(command, channel, user)
                 time.sleep(RTM_READ_DELAY)
         else:
             print("Connection failed. Exception traceback printed above.")
