@@ -1,8 +1,9 @@
-from slackbot_settings import API_TOKEN
-import time
 import re
+import time
 import random
+import diplomacyMap
 from slackclient import SlackClient
+from slackbot_settings import API_TOKEN
 
 
 RTM_READ_DELAY = 1 # 1 second delay between reading from RTM
@@ -56,7 +57,7 @@ class diplomacyBot():
             else:
                 self.send("This isn't the diplomacy channel")
                 return
-        except:
+        except KeyError:
             self.send("This isn't the diplomacy channel")
             return
         if(self.starting == False):
@@ -97,16 +98,16 @@ class diplomacyBot():
 
     def randomizeCountries(self):
         self.countries = {1: "Russia", 2: "England", 3: "Germany", 4: "France", 5: "Austria", 6: "Italy", 7: "Turkey"}
-        self.unitList = {1:[["stp","f",True],["mos","a",True],["sev","f",True],["war","a",True]],
-                        2:[["edi","f",True],["lvp","a",True],["lon","f",True]],
-                        3:[["kie","f",True],["ber","a",True],["mun","a",True]],
-                        4:[["edi","f",True],["lvp","a",True],["lon","f",True]],
-                        5:[["tri","f",True],["bud","a",True],["vie","a",True]],
-                        6:[["nap","f",True],["rom","a",True],["ven","a",True]],
-                        7:[["ank","f",True],["smy","a",True],["con","a",True]]}
+        self.unitList ={1:[["stp","f"],["mos","a"],["sev","f"],["war","a"],
+                        2:[["edi","f"],["lvp","a"],["lon","f"]],
+                        3:[["kie","f"],["ber","a"],["mun","a"]],
+                        4:[["edi","f"],["lvp","a"],["lon","f"]],
+                        5:[["tri","f"],["bud","a"],["vie","a"]],
+                        6:[["nap","f"],["rom","a"],["ven","a"]],
+                        7:[["ank","f"],["smy","a"],["con","a"]]}
+                        #country: [[unit location, type]]
         self.orders = { 1:[],2:[],3:[],4:[],5:[],6:[],7:[]}
 
-                        #country: [[unit location, type, on a supplydept]]
         assign = random.sample(range(1,8),len(self.players))
         it = 0
         for i in self.players:
@@ -125,7 +126,7 @@ class diplomacyBot():
         self.orders[ctry].append(self.command[:])
         print(self.orders[ctry])
         self.send("Added order: "+" ".join(self.command).upper())
-
+#============================== Needs Work
     def show(self):
         try:
             if(self.command[1] == "help"):
@@ -161,6 +162,9 @@ class diplomacyBot():
             pass
         else:
             self.im(self.sender," ".join(self.command)+" is not a valid command.")
+
+    def move(self):
+        pass
     def retreat(self):
         pass
     def build(self):
@@ -175,7 +179,13 @@ class diplomacyBot():
 #=============================== Event Loop and Bones
     def handle_command(self,cmd, channel, sender):
         default_response = "I do not understand that command"
-        self.viableCommands = {"start":self.start,"add me":self.addPlayer,"f ":self.ordered,"a ":self.ordered,"adjudicate":self.adjudicate,"show":self.show}#list of commands
+        self.viableCommands = {
+                "start":self.start,
+                "add me":self.addPlayer,
+                "f ":self.ordered,
+                "a ":self.ordered,
+                "adjudicate":self.adjudicate,
+                "show":self.show}#list of commands
         iscommand = False
         #variables needed for functions that can't be passed with the dictionary
         self.current = channel
