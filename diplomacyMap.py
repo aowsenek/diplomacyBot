@@ -81,6 +81,7 @@ tiles = {
     'APU': Tile(58, None, [], False, None),
     'NAP': Tile(59, None, [], False, None),
     'CON': Tile(60, None, [], False, None),
+
     'ANK': Tile(61, None, [], False, None),
     'ARM': Tile(62, None, [], False, None),
     'SMY': Tile(63, None, [], False, None),
@@ -105,6 +106,7 @@ palette = np.zeros(256 * 3, dtype=np.uint8)
 def setColor(index, color):
     palette[index], palette[index + 256], palette[index + 512] = color
 
+def
 setColor(1, BORDER)
 setColor(2, IMPASSABLE)
 setColor(3, WATER)
