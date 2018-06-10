@@ -1,16 +1,13 @@
 import re
 import time
 import random
-from diplomacyMap import *
+from diplomacyMap import Map
 from slackclient import SlackClient
 from slackbot_settings import API_TOKEN
-
 
 RTM_READ_DELAY = 1 # 1 second delay between reading from RTM
 EXAMPLE_COMMAND = "do"
 MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
-
-
 
 class diplomacyBot():
     def __init__(self):
@@ -44,7 +41,7 @@ class diplomacyBot():
                 text=message,
                 as_user="true")
 
-    def map(self, player, mapname):
+    def showMap(self, player, mapname):
         self.sc.api_call(
                   "files.upload",
                    channels=player,
@@ -68,6 +65,7 @@ class diplomacyBot():
             self.send("Message \"@bender add me\" if you want to join the game")
             self.send("Message \"@bender Start\" when all members have registered and you are ready to play")
             self.starting = True
+            self.map = Map()
             self.addPlayer()
         else:
             self.starting = False
@@ -81,19 +79,16 @@ class diplomacyBot():
             playerstr = "Players are "+"".join([str(self.players[i][0])+", " for i in self.players])
             self.send(playerstr[:-2])
             self.randomizeCountries()
+            self.springFall()
 
             for i in self.players:
                 ctry = self.players[i][1]
                 self.im(i,"Your country is "+str(self.countries[ctry]))
-                unitLocs = "Your units are: "+
-                            "".join([str(j[1])+", " for j in getUnitsByCountry(ctry)])
+                unitLocs = "Your units are: "+ "".join([str(j[0])+", " for j in self.map.getUnitsByCountry(ctry)])
                 #send map
-                #self.map(i, "diplomacy_map.png")
+                #self.showMap(i, "diplomacy_map.png")
                 self.im(i,unitLocs[:-2])
-                self.im(i,"Send orders here, so they are private.\n
-                        Valid orders are in form [unit type] [location of unit]
-                        [action] [location of action or second unit]
-                        [second unit action] [location of second unit action]")
+                self.im(i,"Send orders here, so they are private.\n Valid orders are in form [unit type] [location of unit] [action] [location of action or second unit] [second unit action] [location of second unit action]")
 
     def addPlayer(self):
         info = self.sc.api_call("users.info",user=self.sender)
@@ -121,34 +116,17 @@ class diplomacyBot():
             self.players[i][1] = assign[it]
             it += 1
         print(self.players)
-
-    def ordered(self):
-        ctry = self.players[self.sender][1]
-        idx = 0
-        for i in self.orders[ctry]:
-            if(i[1] == self.command[1]):
-                del self.orders[ctry][idx]
-            idx += 1
-        self.orders[ctry].append(self.command[:])
-        print(self.orders[ctry])
-        self.send("Added order: "+" ".join(self.command))
-
-    def verify(self):
-        ctry = self.players[self.sender][1]
-        ordrs = "Your entered orders are:\n "+"\n".join(self.orders[ctry])
-        self.im(self.sender, ordrs[:-1])
-
 #============================== Needs Work
     def show(self):#needs to implement map generation with the map library
         try:
             if(self.command[1] == "HELP"):
                 self.im(self.current, "Type \"show current map\" or \"show arrow map\"")
             elif(self.command[1][0] == "C"):
-                self.map(self.current, "diplomacy_map.png")
+                self.showMap(self.current, "diplomacy_map.png")
             else:
                 self.im(self.current, "That hasn't been implemented yet")
         except:
-            self.map(self.current, "diplomacy_map.png")
+            self.showMap(self.current, "diplomacy_map.png")
 
     def win(self): #ties not implemented yet
         for i in self.players:
@@ -157,6 +135,50 @@ class diplomacyBot():
                 self.running = False
                 self.send("Game Over! The winner is "+self.countries[ctry])
                 return
+#============================== Game movement interface
+    def standardizeOrder(cmd):
+            typ = cmd[0][0]
+            loc1 = cmd[1]
+            act1 = cmd[2][0]
+            loc2 = act2 = loc3 = None
+            try:
+                loc2 = i[3]
+                act2 = i[4][0]
+                loc3 = i[5]
+            except IndexError: pass
+            if(act1 == "M" or act1 == "A"):
+                act1 = "-"
+            if(act2 == "M" or act2 == "A"):
+                act2 = "-"
+            return filter(None,[typ,loc1,act1,loc2,act2,loc3])
+
+    def ordered(self):
+        ctry = self.players[self.sender][1]
+        idx = 0
+        for i in self.orders[ctry]:
+            if(i[1] == self.command[1]):
+                del self.orders[ctry][idx]
+            idx += 1
+        self.command = self.standardizeOrder(self.command)
+        self.orders[ctry].append(self.command[:])
+        print(self.orders[ctry])
+        self.send("Added standardized order: "+" ".join(self.command))
+
+    def verify(self):
+        ctry = self.players[self.sender][1]
+        ordrs = "Your entered orders are:\n "+"\n".join(self.orders[ctry])
+        self.im(self.sender, ordrs[:-1])
+
+    def springFall(self):
+        if(self.resolving == False):
+            self.send("The "+self.season.lower()+" season is starting")
+            self.send("Send in your movement orders at this time.")
+        else:
+            self.sendMap(self.diplomacy, "currentMap.png")
+            self.send("The "+self.season.lower()+" season is resolving.")
+            self.send("Please send in your retreat orders at this time.")
+            #for i in self.retreatingUnits:
+            #   self.im(self.map.getUnitByProvince(i).controllerID,"Your unit at "+i+" needs to retreat")
 
     def winter(self):
         self.send("The Winter Season is starting.")
@@ -172,53 +194,58 @@ class diplomacyBot():
                 self.im(i,"Type [unit type] [location] to order unit destruction.")
 
 #=============================== Game Logic
-    def resolveWinterOrders(self):
-        for i in self.players:
-            ctry = self.players[i][1]
-            if(self.unitsToBuild[ctry] > 0): #Build Units
-                unitsBuilt = 0
-                for i in self.orders:
-                    if(unitsBuilt < self.unitsToBuild[ctry]):
-                        placeUnit(i[0],ctry,i[1])
-                        unitsBuilt += 1
-            elif(self.unitsToBuild[ctry] < 0): #Delete Units
-                if(self.orders[ctry] == self.unitsToBuild[ctry]):
-                    for i in self.orders[ctry]:
-                        deleteUnit(i[1])
-                elif(self.orders[ctry] > self.unitsToBuild[ctry]):
-                    unitsRemoved = 0
-                    for i in self.orders[ctry]:
-                        if(unitsRemoved < self.unitsToBuild[ctry]):
-                            deleteUnit(i[1])
-                            unitsRemoved += 1
-                else:
-                    unitsRemoved = 0
-                    units = getUnitsByCountry(ctry)
-                    for i in self.orders[ctry]:
-                        if(unitsRemoved < self.unitsToBuild[ctry]):
-                            deleteUnit(i[1])
-                            unitsRemoved += 1
-                    for i in units:
-                        if(unitsRemoved < self.unitsToBuild[ctry]):
-                            deleteUnit(i[1])
-                            unitsRemoved += 1
-            else: pass #No units to remove or add
+
+#self.command[Type, location1, action1, location2, action2, location3]
+    def adjudicate(self):
+        if(self.season == "SPRING"):
+            if(self.resolving == False):
+                self.move()
+                self.resolving = True
+            else:
+                self.retreat()
+                self.season = "FALL"
+                self.resolving = False
+                self.springFall()
+        elif(self.season == "FALL"):
+            if(self.resolving == False):
+                self.move()
+                self.resolving = True
+            else:
+                self.retreat()
+                self.season = "WINTER"
+                self.resolving = False
+        elif(self.season == "WINTER"):
+            if(self.resolving == False):
+                self.build()
+                self.resolving = True
+            else:
+                self.resolveWinterOrders()
+                self.season = "SPRING"
+                self.resolving = False
+                self.springFall()
+        self.send("The season is now "+self.season)
+
+    def move(self):
+        pass
+
+    def retreat(self):
+        pass
 
     def isValidCommand(self, cmd):
         if(self.command[2][0] == "H"): #holding
             return True
         elif(self.command[2][0] == "-" or self.command[2][0] == "A"):#attacking
-            if(adjacent(self.command[1], self.command[3])):
+            if(self.map.adjacent(self.command[1], self.command[3])):
                 return True
             return False
         elif(self.command[2][0] == "S"): #supporting
-            if(adjacent(self.command[1],self.command[5])):
-                if(adjacent(self.command[3],self.command[5])):
+            if(self.map.adjacent(self.command[1],self.command[5])):
+                if(self.map.adjacent(self.command[3],self.command[5])):
                     return True
             return False
         elif(self.command[2][0] == "C"): #convoying
-            if(adjacent(self.command[1],self.command[5])):
-                if(adjacent(self.command[3],self.command[5])):
+            if(self.map.adjacent(self.command[1],self.command[5])):
+                if(self.map.adjacent(self.command[3],self.command[5])):
                     return True
             return False
 
@@ -227,53 +254,43 @@ class diplomacyBot():
         for i in self.players:
             ctry = self.players[i][1]
             supplyDepots = 0
-            units = getUnitsByCountry(ctry)
+            units = self.map.getUnitsByCountry(ctry)
             for t,loc in units:
-                if(isSupplyDepot(loc)):
+                if(self.map.isSupplyDepot(loc)):
                     supplyDepots += 1
-                changeOwner(loc,ctry)
+                self.map.changeController(loc,ctry)
             self.unitsToBuild[ctry] =  supplyDepots - len(units)
             self.supplyDepots[ctry] = supplyDepots
             self.win()
         self.winter()
-#self.command[Type, location1, action1, location2, action2, location3]
-#=============================== In Progress
-    def adjudicate(self):
-        if(self.season == "SPRING"):
-            if(self.resolving == True):
-                self.resolving = False
-                self.season = "FALL"
-                return
-            self.resolving = True
-        elif(self.season == "FALL"):
-            if(self.resolving == True):
-                self.resolving = False
-                self.season = "WINTER"
-                return
-            self.resolving = True
-        elif(self.season == "WINTER"):
-            if(self.resolving == True):
-                self.resolveWinterOrders()
-                self.resolving = False
-                self.season = "SPRING"
-                return
-            self.build()
-            self.resolving = True
-
-
-
-
-    def move(self):
-        pass
-    def retreat(self):
-        pass
-
-
-
-
-
-
-
+    def resolveWinterOrders(self):
+        for i in self.players:
+            ctry = self.players[i][1]
+            if(self.unitsToBuild[ctry] > 0): #Build Units
+                unitsBuilt = 0
+                for i in self.orders[ctry]:
+                    if(unitsBuilt < self.unitsToBuild[ctry]):
+                        self.map.placeUnit(i[0],ctry,i[1])
+                        unitsBuilt += 1
+            elif(self.unitsToBuild[ctry] < 0): #Delete Units
+                if(self.orders[ctry] >= self.unitsToBuild[ctry]):
+                    unitsRemoved = 0
+                    for i in self.orders[ctry]:
+                        if(unitsRemoved < self.unitsToBuild[ctry]):
+                            self.map.deleteUnit(i[1])
+                            unitsRemoved += 1
+                else:
+                    unitsRemoved = 0
+                    units = self.map.getUnitsByCountry(ctry)
+                    for i in self.orders[ctry]:
+                        if(unitsRemoved < self.unitsToBuild[ctry]):
+                            self.map.deleteUnit(i[1])
+                            unitsRemoved += 1
+                    for i in units:
+                        if(unitsRemoved < self.unitsToBuild[ctry]):
+                            self.map.deleteUnit(i[1])
+                            unitsRemoved += 1
+            else: pass #No units to remove or add
 
 #=============================== Event Loop and Bones
     def handle_command(self,cmd, channel, sender):
@@ -284,7 +301,7 @@ class diplomacyBot():
                 "F ":self.ordered,
                 "A ":self.ordered,
                 "ADJUDICATE":self.adjudicate,
-                "VERIFY",self.verify,
+                "VERIFY":self.verify,
                 "SHOW":self.show}#list of commands
         iscommand = False
         #variables needed for functions that can't be passed with the dictionary

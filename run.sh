@@ -1,1 +1,1 @@
-python3 diplomacybot.py
+python3 diplomacyBot.py
