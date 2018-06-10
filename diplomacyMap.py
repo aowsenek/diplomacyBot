@@ -4,7 +4,6 @@ import numpy as np
 
 from copy import deepcopy
 
-
 from coordinates import coordinates
 
 BORDER = (0, 0, 0)
@@ -31,7 +30,6 @@ class Province:
         self.occupiedCoast = occupiedCoast
         self.isSupplyDepot = isSupplyDepot
         self.unit = unit
-        # self.unit = None
         self.controller = controller
 
 class Country:
@@ -282,16 +280,69 @@ class Map:
 #
 # commands = [
 #     ('A', 'MUN', 'BOH'),
-#     ('S', 'TYR', 'MUN', 'BOH'),
-#     ('A', 'KIE', 'MUN'),
-#     ('A', 'RUH', 'MUN'),
-#     ('A', 'VIE', 'TYR'),
-#     ('H', 'BOH'),
+#     ('A', 'BOH', 'TYR'),
+#     ('A', 'TYR', 'MUN'),
 # ]
 #
-# q = {}
+# class Command:
+#     def __init__(self):
+#         self.cmd = 'H'
+#         self.target = None
+#         self.atk = []
+#         self.sup = []
+#
+#     def __repr__(self):
+#         return '%s (%s vs %s)' % (self.cmd, self.atk, self.sup)
+#
+# q = { n: Command() for n, p in m.provinces.items() if p.unit != None }
+#
 # for command in commands:
 #     if command[0] == 'A':
 #         _, f, t = command
+#         q[f].cmd = 'A'
+#         q[f].target = t
+#         if t in q:
+#             q[t].atk.append(f)
+#     elif command[0] == 'S':
+#         _, s, f, t = command
+#         q[s].cmd = 'S'
+#         q[t].atk.append(s)
+#         q[f].sup.append(s)
+#     elif command[0] == 'H':
+#         pass
+#
+# def active(p):
+#     if p not in q:
+#         return False
+#     c = q[p]
+#     if c.cmd == 'S':
+#         if any([x for x in c.atk if active(x)]):
+#             return False
+#     return True
+#
+# def support(p):
+#     return sum([1 for x in q[p].sup if active(x)])
+#
+# def succeeds(p):
+#     c = q[p]
+#     if c.cmd == 'H':
+#         if not c.atk:
+#             return True
+#         return max([support(x) for x in c.atk]) <= support(p)
+#     if c.cmd == 'A':
+#         if not active(c.target) or (q[c.target].cmd == 'A' and succeeds(c.target)):
+#             return True
+#         return support(p) > support(c.target)
+#     if c.cmd == 'S':
+#         return not active(p)
+#
+# for p in q.keys():
+#     # print("On: %s" % p)
+#     print("%s: %s" % (p, "succeeds" if succeeds(p) else "fails"))
+#
+# start = q.keys()[0]
+# solve(start)
+#
+# print(q)
 # m.saveMap('maptest.png')
 # m.displayMap()
