@@ -10,36 +10,31 @@ BORDER = (0, 0, 0)
 WATER = (180, 180, 255)
 NEUTRAL = (230, 230, 230)
 IMPASSABLE = (50, 50, 50)
-COUNTRY_COLORS = [
-    (180, 180, 225), # RUSSIA
-    (255, 180, 255), # BRITAIN
-    (180, 180, 180), # GERMANY
-    (180, 255, 255), # FRANCE
-    (255, 180, 180), # AUSTRIA
-    (180, 255, 180), # ITALY
-    (180, 255, 255), # TURKEY
-]
 UNIT_SIZE = (50, 50)
 
 class Province:
-    def __init__(self, index, name, neighbors, supportsFleets=False, occupiedCoast=None, isSupplyDepot=False, unit=None, controller=None):
+    def __init__(self, index, name, neighbors, supportsFleets=False, occupiedCoast=None, isSupplyDepot=False, unitType=None, controller=None):
         self.index = index
         self.name = name
         self.neighbors = neighbors
         self.supportsFleets = supportsFleets
         self.occupiedCoast = occupiedCoast
         self.isSupplyDepot = isSupplyDepot
-        self.unit = unit
+        if unitType is not None:
+            self.unit = Unit(unitType, controller)
+        else:
+            self.unit = None
         self.controller = controller
 
 class Country:
-    def __init__(self, name, colorID):
+    def __init__(self, name, countryColor, unitColorID):
         self.name = name
+        self.countryColor = countryColor
 
         baseArmy = np.array(Image.open('army.png'))
         baseNavy = np.array(Image.open('fleet.png'))
         for pix in [baseArmy, baseNavy]:
-            pix[pix==1] = colorID
+            pix[pix==1] = unitColorID
         self.armyIcon = Image.fromarray(baseArmy)
         self.fleetIcon = Image.fromarray(baseNavy)
 
@@ -56,13 +51,14 @@ def centerOfMass(index):
 
 class Map:
     countries = [
-        Country('Russia', 80),
-        Country('Britain', 81),
-        Country('Germany', 82),
-        Country('France', 83),
-        Country('Austria', 84),
-        Country('Italy', 85),
-        Country('Turkey', 86),
+        Country('Neutral', (230, 230, 230), 0),
+        Country('Russia', (180, 180, 225), 80),
+        Country('Britain', (255, 180, 255), 81),
+        Country('Germany', (180, 180, 180), 82),
+        Country('France', (180, 255, 255), 83),
+        Country('Austria', (255, 180, 180), 84),
+        Country('Italy', (180, 255, 255), 85),
+        Country('Turkey', (0, 255, 255), 86),
     ]
 
     provinces = {
@@ -87,54 +83,54 @@ class Map:
         'AEG': Province(21, 'Aegean Sea', set(['BUL', 'GRE', 'ION', 'EAS', 'SMY', 'CON', 'BLA']), supportsFleets=True),
         'EAS': Province(22, 'Eastern Mediterranean Sea', set(['SMY', 'AEG', 'ION', 'SYR']), supportsFleets=True),
         # RUSSIA
-        'STP': Province(23, 'Saint Petersburg', set(['BAR', 'FIN', 'BOT', 'LVN', 'MOS']), supportsFleets=True, isSupplyDepot=True, unit=Unit('F', 0), controller=0),
-        'FIN': Province(24, 'Finland', set(['NWY', 'SWE', 'BOT', 'LVN', 'STP']), supportsFleets=True, controller=0),
-        'MOS': Province(25, 'Moscow', set(['STP', 'LVN', 'WAR', 'UKR', 'SEV']), isSupplyDepot=True, unit=Unit('A', 0), controller=0),
-        'LVN': Province(26, 'Livonia', set(['FIN', 'BOT', 'SKA', 'PRU', 'WAR', 'MOS', 'STP']), supportsFleets=True, controller=0),
-        'WAR': Province(27, 'Warsaw', set(['PRU', 'SIL', 'GAL', 'UKR', 'MOS', 'LVN']), isSupplyDepot=True, unit=Unit('A', 0), controller=0),
-        'SEV': Province(28, 'Sevastopol', set(['MOS', 'UKR', 'RUM', 'BLA', 'ARM']), supportsFleets=True, isSupplyDepot=True, unit=Unit('F', 0), controller=0),
-        'UKR': Province(29, 'Ukraine', set(['MOS', 'WAR', 'GAL', 'RUM', 'SEV']), controller=0),
+        'STP': Province(23, 'Saint Petersburg', set(['BAR', 'FIN', 'BOT', 'LVN', 'MOS']), supportsFleets=True, isSupplyDepot=True, unitType='F', controller=1),
+        'FIN': Province(24, 'Finland', set(['NWY', 'SWE', 'BOT', 'LVN', 'STP']), supportsFleets=True, controller=1),
+        'MOS': Province(25, 'Moscow', set(['STP', 'LVN', 'WAR', 'UKR', 'SEV']), isSupplyDepot=True, unitType='A', controller=1),
+        'LVN': Province(26, 'Livonia', set(['FIN', 'BOT', 'SKA', 'PRU', 'WAR', 'MOS', 'STP']), supportsFleets=True, controller=1),
+        'WAR': Province(27, 'Warsaw', set(['PRU', 'SIL', 'GAL', 'UKR', 'MOS', 'LVN']), isSupplyDepot=True, unitType='A', controller=1),
+        'SEV': Province(28, 'Sevastopol', set(['MOS', 'UKR', 'RUM', 'BLA', 'ARM']), supportsFleets=True, isSupplyDepot=True, unitType='F', controller=1),
+        'UKR': Province(29, 'Ukraine', set(['MOS', 'WAR', 'GAL', 'RUM', 'SEV']), controller=1),
         # BRITAIN
-        'CLY': Province(30, 'Clyde', set(['NAO', 'LVP', 'EDL', 'NWG']), supportsFleets=True, controller=1),
-        'EDL': Province(31, 'None', set(['NWG', 'CLY', 'LVP', 'YOR', 'NTH']), supportsFleets=True, isSupplyDepot=True, unit=Unit('F', 1), controller=1),
-        'LVP': Province(32, 'Liverpool', set(['CLY', 'NAO', 'IRI', 'WAL', 'YOR', 'EDL']), supportsFleets=True, isSupplyDepot=True, unit=Unit('A', 1), controller=1),
-        'YOR': Province(33, 'Yorkshire', set(['EDL', 'LVP', 'WAL', 'LON', 'NTH']), supportsFleets=True, controller=1),
-        'WAL': Province(34, 'Wales', set(['LVP', 'IRI', 'MAO', 'LON', 'YOR']), supportsFleets=True, controller=1),
-        'LON': Province(35, 'London', set(['YOR', 'WAL', 'MAO', 'NTH']), supportsFleets=True, isSupplyDepot=True, unit=Unit('F', 1), controller=1),
+        'CLY': Province(30, 'Clyde', set(['NAO', 'LVP', 'EDL', 'NWG']), supportsFleets=True, controller=2),
+        'EDL': Province(31, 'None', set(['NWG', 'CLY', 'LVP', 'YOR', 'NTH']), supportsFleets=True, isSupplyDepot=True, unitType='F', controller=2),
+        'LVP': Province(32, 'Liverpool', set(['CLY', 'NAO', 'IRI', 'WAL', 'YOR', 'EDL']), supportsFleets=True, isSupplyDepot=True, unitType='A', controller=2),
+        'YOR': Province(33, 'Yorkshire', set(['EDL', 'LVP', 'WAL', 'LON', 'NTH']), supportsFleets=True, controller=2),
+        'WAL': Province(34, 'Wales', set(['LVP', 'IRI', 'MAO', 'LON', 'YOR']), supportsFleets=True, controller=2),
+        'LON': Province(35, 'London', set(['YOR', 'WAL', 'MAO', 'NTH']), supportsFleets=True, isSupplyDepot=True, unitType='F', controller=2),
         # GERMANY
-        'KIE': Province(36, 'Kiel', set(['DEN', 'HEL', 'HOL', 'RUH', 'MUN', 'BER', 'SKA']), supportsFleets=True, isSupplyDepot=True, unit=Unit('F', 2), controller=2),
-        'BER': Province(37, 'Berlin', set(['SKA', 'KIE', 'MUN', 'SIL', 'PRU']), supportsFleets=True, isSupplyDepot=True, unit=Unit('A', 2), controller=2),
-        'PRU': Province(38, 'Prussia', set(['SKA', 'BER', 'SIL', 'WAR', 'LVN']), supportsFleets=True, controller=2),
-        'RUH': Province(39, 'Ruhr', set(['KIE', 'HOL', 'BEL', 'PAR', 'MUN']), controller=2),
-        'MUN': Province(40, 'Munich', set(['KIE', 'RUH', 'PAR', 'TYR', 'BOH', 'SIL', 'BER']), isSupplyDepot=True, unit=Unit('A', 2), controller=2),
-        'SIL': Province(41, 'Silesia', set(['PRU', 'BER', 'MUN', 'BOH', 'GAL', 'WAR']), controller=2),
+        'KIE': Province(36, 'Kiel', set(['DEN', 'HEL', 'HOL', 'RUH', 'MUN', 'BER', 'SKA']), supportsFleets=True, isSupplyDepot=True, unitType='F', controller=3),
+        'BER': Province(37, 'Berlin', set(['SKA', 'KIE', 'MUN', 'SIL', 'PRU']), supportsFleets=True, isSupplyDepot=True, unitType='A', controller=3),
+        'PRU': Province(38, 'Prussia', set(['SKA', 'BER', 'SIL', 'WAR', 'LVN']), supportsFleets=True, controller=3),
+        'RUH': Province(39, 'Ruhr', set(['KIE', 'HOL', 'BEL', 'PAR', 'MUN']), controller=3),
+        'MUN': Province(40, 'Munich', set(['KIE', 'RUH', 'PAR', 'TYR', 'BOH', 'SIL', 'BER']), isSupplyDepot=True, unitType='A', controller=3),
+        'SIL': Province(41, 'Silesia', set(['PRU', 'BER', 'MUN', 'BOH', 'GAL', 'WAR']), controller=3),
         # FRANCE
-        'BRE': Province(42, 'Brest', set(['MAO', 'BAL', 'GAS', 'BUR', 'PIC']), supportsFleets=True, isSupplyDepot=True, unit=Unit('F', 3), controller=3),
-        'PIC': Province(43, 'Picardy', set(['MAO', 'BRE', 'BUR', 'PAR', 'BEL']), supportsFleets=True, controller=3),
-        'PAR': Province(44, 'Paris', set(['BEL', 'PIC', 'BUR', 'GAS', 'MAR', 'MUN', 'RUH']), isSupplyDepot=True, unit=Unit('A', 3), controller=3),
-        'BUR': Province(45, 'Burgundy', set(['PIC', 'BRE', 'GAS', 'PAR']), controller=3),
-        'GAS': Province(46, 'Gascony', set(['BRE', 'BAL', 'SPA', 'MAR', 'PAR', 'BUR']), supportsFleets=True, controller=3),
-        'MAR': Province(47, 'Marseilles', set(['PAR', 'GAS', 'SPA', 'LYO', 'PIE']), supportsFleets=True, isSupplyDepot=True, unit=Unit('A', 3), controller=3),
+        'BRE': Province(42, 'Brest', set(['MAO', 'BAL', 'GAS', 'BUR', 'PIC']), supportsFleets=True, isSupplyDepot=True, unitType='F', controller=4),
+        'PIC': Province(43, 'Picardy', set(['MAO', 'BRE', 'BUR', 'PAR', 'BEL']), supportsFleets=True, controller=4),
+        'PAR': Province(44, 'Paris', set(['BEL', 'PIC', 'BUR', 'GAS', 'MAR', 'MUN', 'RUH']), isSupplyDepot=True, unitType='A', controller=4),
+        'BUR': Province(45, 'Burgundy', set(['PIC', 'BRE', 'GAS', 'PAR']), controller=4),
+        'GAS': Province(46, 'Gascony', set(['BRE', 'BAL', 'SPA', 'MAR', 'PAR', 'BUR']), supportsFleets=True, controller=4),
+        'MAR': Province(47, 'Marseilles', set(['PAR', 'GAS', 'SPA', 'LYO', 'PIE']), supportsFleets=True, isSupplyDepot=True, unitType='A', controller=4),
         # AUSTRIA
-        'BOH': Province(48, 'Bohemia', set(['SIL', 'MUN', 'TYR', 'VIE', 'GAL']), controller=4),
-        'GAL': Province(49, 'Galacia', set(['WAR', 'SIL', 'BOH', 'VIE', 'BUD', 'RUM', 'UKR']), controller=4),
-        'TYR': Province(50, 'Tyrolia', set(['BOH', 'MUN', 'PIE', 'VEN', 'TRI', 'VIE']), controller=4),
-        'VIE': Province(51, 'Vienna', set(['BOH', 'TYR', 'TRI', 'BUD', 'GAL']), isSupplyDepot=True, unit=Unit('A', 4), controller=4),
-        'BUD': Province(52, 'Budapest', set(['GAL', 'VIE', 'TRI', 'SER', 'RUM']), isSupplyDepot=True, unit=Unit('A', 4), controller=4),
-        'TRI': Province(53, 'Trieste', set(['VIE', 'TYR', 'VEN', 'ADR', 'ALB', 'SER', 'BUD']), supportsFleets=True, isSupplyDepot=True, unit=Unit('F', 4), controller=4),
+        'BOH': Province(48, 'Bohemia', set(['SIL', 'MUN', 'TYR', 'VIE', 'GAL']), controller=5),
+        'GAL': Province(49, 'Galacia', set(['WAR', 'SIL', 'BOH', 'VIE', 'BUD', 'RUM', 'UKR']), controller=5),
+        'TYR': Province(50, 'Tyrolia', set(['BOH', 'MUN', 'PIE', 'VEN', 'TRI', 'VIE']), controller=5),
+        'VIE': Province(51, 'Vienna', set(['BOH', 'TYR', 'TRI', 'BUD', 'GAL']), isSupplyDepot=True, unitType='A', controller=5),
+        'BUD': Province(52, 'Budapest', set(['GAL', 'VIE', 'TRI', 'SER', 'RUM']), isSupplyDepot=True, unitType='A', controller=5),
+        'TRI': Province(53, 'Trieste', set(['VIE', 'TYR', 'VEN', 'ADR', 'ALB', 'SER', 'BUD']), supportsFleets=True, isSupplyDepot=True, unitType='F', controller=5),
         # ITALY
-        'PIE': Province(54, 'Piedmont', set(['MAR', 'LYO', 'TUS', 'VEN', 'TYR']), supportsFleets=True, controller=5),
-        'VEN': Province(55, 'Venice', set(['TYR', 'PIE', 'TUS', 'ROM', 'APU', 'ADR', 'TRI']), supportsFleets=True, isSupplyDepot=True, unit=Unit('A', 5), controller=5),
-        'TUS': Province(56, 'Tuscany', set(['VEN', 'PIE', 'LYO', 'TYS', 'ROM']), supportsFleets=True, controller=5),
-        'ROM': Province(57, 'Rome', set(['VEN', 'TUS', 'TYS', 'NAP', 'APU']), supportsFleets=True, isSupplyDepot=True, unit=Unit('A', 5), controller=5),
-        'APU': Province(58, 'Apulia', set(['ADR', 'VEN', 'ROM', 'NAP', 'ION']), supportsFleets=True, controller=5),
-        'NAP': Province(59, 'Naples', set(['APU', 'ROM', 'TYS', 'ION']), supportsFleets=True, isSupplyDepot=True, unit=Unit('F', 5), controller=5),
+        'PIE': Province(54, 'Piedmont', set(['MAR', 'LYO', 'TUS', 'VEN', 'TYR']), supportsFleets=True, controller=6),
+        'VEN': Province(55, 'Venice', set(['TYR', 'PIE', 'TUS', 'ROM', 'APU', 'ADR', 'TRI']), supportsFleets=True, isSupplyDepot=True, unitType='A', controller=6),
+        'TUS': Province(56, 'Tuscany', set(['VEN', 'PIE', 'LYO', 'TYS', 'ROM']), supportsFleets=True, controller=6),
+        'ROM': Province(57, 'Rome', set(['VEN', 'TUS', 'TYS', 'NAP', 'APU']), supportsFleets=True, isSupplyDepot=True, unitType='A', controller=6),
+        'APU': Province(58, 'Apulia', set(['ADR', 'VEN', 'ROM', 'NAP', 'ION']), supportsFleets=True, controller=6),
+        'NAP': Province(59, 'Naples', set(['APU', 'ROM', 'TYS', 'ION']), supportsFleets=True, isSupplyDepot=True, unitType='F', controller=6),
         # TURKEY
-        'CON': Province(60, 'Constantinople', set(['BLA', 'BUL', 'AEG', 'SMY', 'ANK']), supportsFleets=True, isSupplyDepot=True, unit=Unit('A', 6), controller=6),
-        'ANK': Province(61, 'Ankara', set(['BLA', 'CON', 'SMY', 'ARM']), supportsFleets=True, isSupplyDepot=True, unit=Unit('F', 6), controller=6),
-        'ARM': Province(62, 'Armenia', set(['SEV', 'BLA', 'ANK', 'SMY', 'SYR']), supportsFleets=True, controller=6),
-        'SMY': Province(63, 'Smyrna', set(['ANK', 'CON', 'AEG', 'EAS', 'SYR', 'ARM']), supportsFleets=True, isSupplyDepot=True, unit=Unit('A', 6), controller=6),
-        'SYR': Province(64, 'Syria', set(['ARM', 'SMY', 'EAS']), supportsFleets=True, controller=6),
+        'CON': Province(60, 'Constantinople', set(['BLA', 'BUL', 'AEG', 'SMY', 'ANK']), supportsFleets=True, isSupplyDepot=True, unitType='A', controller=7),
+        'ANK': Province(61, 'Ankara', set(['BLA', 'CON', 'SMY', 'ARM']), supportsFleets=True, isSupplyDepot=True, unitType='F', controller=7),
+        'ARM': Province(62, 'Armenia', set(['SEV', 'BLA', 'ANK', 'SMY', 'SYR']), supportsFleets=True, controller=7),
+        'SMY': Province(63, 'Smyrna', set(['ANK', 'CON', 'AEG', 'EAS', 'SYR', 'ARM']), supportsFleets=True, isSupplyDepot=True, unitType='A', controller=7),
+        'SYR': Province(64, 'Syria', set(['ARM', 'SMY', 'EAS']), supportsFleets=True, controller=7),
         # NEUTRAL
         'NWY': Province(65, 'Norway', set(['NWG', 'NTH', 'SWE', 'FIN', 'BAR']), supportsFleets=True, isSupplyDepot=True),
         'SWE': Province(66, 'Sweden', set(['NWY', 'NTH', 'DEN', 'SKA', 'BOT', 'FIN']), supportsFleets=True, isSupplyDepot=True),
@@ -168,36 +164,36 @@ class Map:
         for i in range(4, 24):
             self._setColor(i, WATER)
         for i in range(23, 30):
-            self._setColor(i, COUNTRY_COLORS[0])
+            self._setColor(i, self.countries[1].countryColor)
         for i in range(30, 36):
-            self._setColor(i, COUNTRY_COLORS[1])
+            self._setColor(i, self.countries[2].countryColor)
         for i in range(36, 42):
-            self._setColor(i, COUNTRY_COLORS[2])
+            self._setColor(i, self.countries[3].countryColor)
         for i in range(42, 48):
-            self._setColor(i, COUNTRY_COLORS[3])
+            self._setColor(i, self.countries[4].countryColor)
         for i in range(48, 54):
-            self._setColor(i, COUNTRY_COLORS[4])
+            self._setColor(i, self.countries[5].countryColor)
         for i in range(54, 60):
-            self._setColor(i, COUNTRY_COLORS[5])
+            self._setColor(i, self.countries[6].countryColor)
         for i in range(60, 65):
-            self._setColor(i, COUNTRY_COLORS[6])
+            self._setColor(i, self.countries[7].countryColor)
         for i in range(65, 79):
-            self._setColor(i, NEUTRAL)
-        self._setColor(80, COUNTRY_COLORS[0])
-        self._setColor(81, COUNTRY_COLORS[1])
-        self._setColor(82, COUNTRY_COLORS[2])
-        self._setColor(83, COUNTRY_COLORS[3])
-        self._setColor(84, COUNTRY_COLORS[4])
-        self._setColor(85, COUNTRY_COLORS[5])
-        self._setColor(86, COUNTRY_COLORS[6])
+            self._setColor(i, self.countries[0].countryColor)
+        self._setColor(80, self.countries[1].countryColor)
+        self._setColor(81, self.countries[2].countryColor)
+        self._setColor(82, self.countries[3].countryColor)
+        self._setColor(83, self.countries[4].countryColor)
+        self._setColor(84, self.countries[5].countryColor)
+        self._setColor(85, self.countries[6].countryColor)
+        self._setColor(86, self.countries[7].countryColor)
 
     def _drawUnit(self, map, icon, coordinates):
         x, y = coordinates
         map.paste(icon, (int(x), int(y)))
 
-    def _setColor(self, tileID, color):
-        # self._palette[tileID], self._palette[tileID + 256], self._palette[tileID + 512] = color
-        self._palette[tileID * 3], self._palette[tileID * 3 + 1], self._palette[tileID * 3 + 2] = color
+    def _setColor(self, tileID, countryColor):
+        # self._palette[tileID], self._palette[tileID + 256], self._palette[tileID + 512] = countryColor
+        self._palette[tileID * 3], self._palette[tileID * 3 + 1], self._palette[tileID * 3 + 2] = countryColor
 
     def getMap(self):
         map = deepcopy(self._baseMap)
@@ -260,7 +256,7 @@ class Map:
         p = self.provinces[province]
         p.controller = controllerID
         if self.isLand(province):
-            self._setColor(p.index, COUNTRY_COLORS[controllerID])
+            self._setColor(p.index, self.countries[controllerID].countryColor)
 
     def isLand(self, province):
         return self.provinces[province].index > 22
@@ -270,7 +266,7 @@ class Map:
 
 # Testing - too lazy to remove
 # m = Map()
-#
+
 # m.placeUnit('A', 0, 'MUN')
 # m.placeUnit('A', 0, 'KIE')
 # m.placeUnit('A', 0, 'RUH')
