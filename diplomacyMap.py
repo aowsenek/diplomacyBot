@@ -1,4 +1,4 @@
-import platform
+import platform, math
 
 from PIL import Image, ImagePalette, ImageFont, ImageDraw
 from copy import deepcopy
@@ -204,15 +204,50 @@ class Map:
 
         x, y = coordinates
         w, h = size
-        map.paste(icon, (int(x) - (w/2), int(y) - (h/2)), mask)
+        map.paste(icon, (int(x) - (w//2), int(y) - (h//2)), mask)
 
     def _setColor(self, tileID, countryColor):
         # self._palette[tileID], self._palette[tileID + 256], self._palette[tileID + 512] = countryColor
         self._palette[tileID * 3], self._palette[tileID * 3 + 1], self._palette[tileID * 3 + 2] = countryColor
 
-    def getMap(self):
+    def _drawArrow(self, s, e, width, fill, draw, backoff = 50):
+        xs, ys = s
+        xe, ye = e
+        print(s, e)
+        slope = (ye - ys) / (xe - xs)
+        print(slope)
+        theta = math.atan(slope)
+        print((theta / math.pi) * 180)
+        rightTheta = theta + math.pi + (math.pi / 7)
+        leftTheta = theta + math.pi - (math.pi / 7)
+        # Shorten the length of the line so it doesn't overlap with the units or names
+        ne = xne, yne = (xe - (math.cos(theta) * backoff), ye - (math.sin(theta) * backoff))
+        ns = xns, yns = (xs + (math.cos(theta) * backoff), ys + (math.sin(theta) * backoff))
+        length = pow((xne-xns) * (xne-xns) + (yne-yns) * (yne-yns), 0.5) / 5.0
+        right = (xne + (math.cos(rightTheta) * length), yne + (math.sin(rightTheta) * length))
+        left = (xne + (math.cos(leftTheta) * length), yne + (math.sin(leftTheta) * length))
+        draw.line((ne, right), width=width, fill=fill)
+        draw.line((ne, left), width=width, fill=fill)
+        draw.line((ns, ne), width=width, fill=fill)
+
+
+    def getMap(self, commands=None):
         map = deepcopy(self._baseMap)
         map.putpalette(self._palette)
+
+        if commands is not None:
+            draw = ImageDraw.Draw(map)
+            for command in commands:
+                if command.type == 'A':
+                    f = coordinates[command.source]
+                    t = coordinates[command.dest]
+                    self._drawArrow(f, t, 7, 0, draw)
+                # if command.type == 'S':
+                #     f = coordinates[command.source]
+                #     t = coordinates[command.dest]
+                #     draw.line((ns, ne), width=width, fill=fill)
+                #     self._drawArrow(f, t, 7, 0, draw)
+
         for name, province in self.provinces.items():
             if province.unit:
                 c = self.countries[province.unit.controllerID]
@@ -220,11 +255,11 @@ class Map:
 
         return map
 
-    def saveMap(self, filename):
-        self.getMap().save(filename)
+    def saveMap(self, filename, commands=None):
+        self.getMap(commands).save(filename)
 
-    def displayMap(self):
-        self.getMap().show()
+    def displayMap(self, commands=None):
+        self.getMap(commands).show()
 
     def placeUnit(self, type, controllerID, province):
         assert not self.provinces[province].unit
@@ -281,7 +316,7 @@ class Map:
 
 # Testing - too lazy to remove
 m = Map()
-
+#
 # m.placeUnit('A', 0, 'MUN')
 # m.placeUnit('A', 0, 'KIE')
 # m.placeUnit('A', 0, 'RUH')
@@ -355,5 +390,19 @@ m = Map()
 # solve(start)
 #
 # print(q)
-# m.saveMap('maptest.png')
-m.displayMap()
+# class Command:
+#     def __init__(self, type, source, dest=None, support=None):
+#         self.type = type
+#         self.source = source
+#         self.dest = dest
+#         self.support = support
+#
+# y = [
+#     Command('A', 'NAO', 'NWG'),
+#     Command('A', 'UKR', 'MOS'),
+#     Command('A', 'NTH', 'HEL'),
+#     Command('A', 'LYO', 'ION'),
+# ]
+#
+# m.saveMap('maptest.png', commands=y)
+# m.displayMap(commands=y)
