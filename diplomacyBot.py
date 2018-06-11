@@ -8,6 +8,15 @@ from slackbot_settings import API_TOKEN
 RTM_READ_DELAY = 1 # 1 second delay between reading from RTM
 EXAMPLE_COMMAND = "do"
 MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
+class Command:
+    def __init__(self):
+        self.cmd = 'H'
+        self.target = None
+        self.atk = []
+        self.sup = []
+
+    def __repr__(self):
+        return '%s (%s vs %s)' % (self.cmd, self.atk, self.sup)
 
 class diplomacyBot():
     def __init__(self):
@@ -120,9 +129,11 @@ class diplomacyBot():
     def show(self):#needs to implement map generation with the map library
         try:
             if(self.command[1] == "HELP"):
-                self.im(self.current, "Type \"show current map\" or \"show arrow map\"")
-            elif(self.command[1][0] == "C"):
-                self.showMap(self.current, "diplomacy_map.png")
+                self.im(self.current, "Type \"show current map\" or \"show arrow map\"") #Outdated)
+            elif(self.command[1][0] == "M"):
+                self.map.getMap()
+                self.map.saveMap("current_units.png")
+                self.showMap(self.current, "current_units.png")
             else:
                 self.im(self.current, "That hasn't been implemented yet")
         except:
@@ -225,8 +236,58 @@ class diplomacyBot():
                 self.springFall()
         self.send("The season is now "+self.season)
 
+
     def move(self):
-        pass
+        q = { n: Command() for n, p in self.map.provinces.items() if p.unit != None }
+        for command in self.commands:
+            if command[2] == '-':
+                _, f, t = command
+                q[f].cmd = '-'
+                q[f].target = t
+                if t in q:
+                    q[t].atk.append(f)
+            elif command[2] == 'S':
+                try:
+                    _, lc1, s, f,a,t = command
+                except IndexError:
+                    _, lc1, s, f,a = command
+
+                q[s].cmd = 'S'
+                q[t].atk.append(s)
+                q[f].sup.append(s)
+            elif command[2] == 'H':
+                pass
+        for p in q.keys():
+            print("%s: %s" % (p, "succeeds" if succeeds(p) else "fails"))
+        #start = q.keys()[0]
+        #solve(start)
+
+    def active(p):
+        if p not in q:
+            return False
+        c = q[p]
+        if c.cmd == 'S':
+            if any([x for x in c.atk if active(x)]):
+                return False
+        return True
+
+    def support(p):
+        return sum([1 for x in q[p].sup if active(x)])
+
+    def succeeds(p):
+        c = q[p]
+        if c.cmd == 'H':
+            if not c.atk:
+                return True
+            return max([support(x) for x in c.atk]) <= support(p)
+        if c.cmd == '-':
+            if not active(c.target) or (q[c.target].cmd == '-' and succeeds(c.target)):
+                return True
+            return support(p) > support(c.target)
+        if c.cmd == 'S':
+            return not active(p)
+
+
 
     def retreat(self):
         pass
@@ -234,7 +295,7 @@ class diplomacyBot():
     def isValidCommand(self, cmd):
         if(self.command[2][0] == "H"): #holding
             return True
-        elif(self.command[2][0] == "-" or self.command[2][0] == "A"):#attacking
+        elif(self.command[2][0] == "-"):#attacking
             if(self.map.adjacent(self.command[1], self.command[3])):
                 return True
             return False
