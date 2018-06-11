@@ -1,8 +1,9 @@
+import platform
+
 from PIL import Image, ImagePalette, ImageFont, ImageDraw
+from copy import deepcopy
 
 import numpy as np
-
-from copy import deepcopy
 
 from coordinates import coordinates
 
@@ -52,13 +53,13 @@ def centerOfMass(index):
 class Map:
     countries = [
         Country('Neutral', (230, 230, 230), 0),
-        Country('Russia', (180, 180, 225), 80),
+        Country('Russia', (120, 120, 225), 80),
         Country('Britain', (255, 180, 255), 81),
         Country('Germany', (180, 180, 180), 82),
         Country('France', (180, 255, 255), 83),
         Country('Austria', (255, 180, 180), 84),
-        Country('Italy', (180, 255, 255), 85),
-        Country('Turkey', (0, 255, 255), 86),
+        Country('Italy', (120, 255, 120), 85),
+        Country('Turkey', (255, 255, 0), 86),
     ]
 
     provinces = {
@@ -149,14 +150,21 @@ class Map:
     }
 
     def __init__(self):
-        self._baseMap = Image.open('diplomacy_map.png')
+        self._baseMap = Image.open('map.png')
         self._draw = ImageDraw.Draw(self._baseMap)
         self._palette = np.zeros(256 * 3, dtype=np.uint8)
 
+        if platform.system() == 'Windows':
+            self.font_path = 'arial.ttf'
+        else:
+            # May need to change
+            self.font_path = '/usr/sharefonts/truetype/lato/Lato-Regular.ttf'
+
         for name, province in self.provinces.items():
             (x, y) = coordinates[name]
-        #    font = ImageFont.truetype("arial.ttf", 40)
-            self._draw.text((x, y), name, (0,0,0))#, font=font)
+            font = ImageFont.truetype(self.font_path, 40)
+            w, h = self._draw.textsize(name, font)
+            self._draw.text((x - (w/2), y - (h/2)), name, (0,0,0), font=font)
 
         self._setColor(1, BORDER)
         self._setColor(2, IMPASSABLE)
@@ -188,8 +196,15 @@ class Map:
         self._setColor(86, self.countries[7].countryColor)
 
     def _drawUnit(self, map, icon, coordinates):
+        # Create mask for circular icons
+        size = icon.size
+        mask = Image.new('L', size, 0)
+        draw = ImageDraw.Draw(mask)
+        draw.ellipse((0, 0) + size, fill=255)
+
         x, y = coordinates
-        map.paste(icon, (int(x), int(y)))
+        w, h = size
+        map.paste(icon, (int(x) - (w/2), int(y) - (h/2)), mask)
 
     def _setColor(self, tileID, countryColor):
         # self._palette[tileID], self._palette[tileID + 256], self._palette[tileID + 512] = countryColor
@@ -265,7 +280,7 @@ class Map:
         return not self.isLand(self.province)
 
 # Testing - too lazy to remove
-# m = Map()
+m = Map()
 
 # m.placeUnit('A', 0, 'MUN')
 # m.placeUnit('A', 0, 'KIE')
@@ -341,4 +356,4 @@ class Map:
 #
 # print(q)
 # m.saveMap('maptest.png')
-# m.displayMap()
+m.displayMap()
