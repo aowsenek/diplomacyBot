@@ -126,7 +126,8 @@ class diplomacyBot():
             it += 1
         print(self.players)
 #============================== Needs Work
-    def show(self):#needs to implement map generation with the map library
+    def show(self, opt = None):#needs to implement map generation with the map library
+        if(opt): self.command = opt
         try:
             if(self.command[1] == "HELP"):
                 self.im(self.current, "Type \"show current map\" or \"show arrow map\"") #Outdated)
@@ -147,21 +148,21 @@ class diplomacyBot():
                 self.send("Game Over! The winner is "+self.countries[ctry])
                 return
 #============================== Game movement interface
-    def standardizeOrder(cmd):
+    def standardizeOrder(self, cmd):
             typ = cmd[0][0]
             loc1 = cmd[1]
             act1 = cmd[2][0]
             loc2 = act2 = loc3 = None
             try:
-                loc2 = i[3]
-                act2 = i[4][0]
-                loc3 = i[5]
+                loc2 = cmd[3]
+                act2 = cmd[4][0]
+                loc3 = cmd[5]
             except IndexError: pass
             if(act1 == "M" or act1 == "A"):
                 act1 = "-"
             if(act2 == "M" or act2 == "A"):
                 act2 = "-"
-            return filter(None,[typ,loc1,act1,loc2,act2,loc3])
+            return list(filter(None,[typ,loc1,act1,loc2,act2,loc3]))
 
     def ordered(self):
         ctry = self.players[self.sender][1]
@@ -185,7 +186,7 @@ class diplomacyBot():
             self.send("The "+self.season.lower()+" season is starting")
             self.send("Send in your movement orders at this time.")
         else:
-            self.sendMap(self.diplomacy, "currentMap.png")
+            self.show(opt = "map")
             self.send("The "+self.season.lower()+" season is resolving.")
             self.send("Please send in your retreat orders at this time.")
             #for i in self.retreatingUnits:
@@ -212,19 +213,28 @@ class diplomacyBot():
             if(self.resolving == False):
                 self.move()
                 self.resolving = True
+                if(self.fails == []):
+                    self.resolving = False
+                    self.season = "WINTER"
+                self.springFall()
             else:
                 self.retreat()
-                self.season = "FALL"
+                self.season = "WINTER"
                 self.resolving = False
                 self.springFall()
         elif(self.season == "FALL"):
             if(self.resolving == False):
                 self.move()
                 self.resolving = True
+                if(self.fails == []):
+                    self.resolving = False
+                    self.season = "WINTER"
+                self.springFall()
             else:
                 self.retreat()
                 self.season = "WINTER"
                 self.resolving = False
+                self.springFall()
         elif(self.season == "WINTER"):
             if(self.resolving == False):
                 self.build()
@@ -234,14 +244,17 @@ class diplomacyBot():
                 self.season = "SPRING"
                 self.resolving = False
                 self.springFall()
-        self.send("The season is now "+self.season)
 
 
     def move(self):
         q = { n: Command() for n, p in self.map.provinces.items() if p.unit != None }
-        for command in self.commands:
+        orders = []
+        for i in self.countries:
+            orders = orders + self.orders[i]
+        for command in orders:
+            print(command)
             if command[2] == '-':
-                _, f, t = command
+                _, f,a,t = command
                 q[f].cmd = '-'
                 q[f].target = t
                 if t in q:
@@ -257,58 +270,51 @@ class diplomacyBot():
                 q[f].sup.append(s)
             elif command[2] == 'H':
                 pass
+        self.success = []
+        self.fails = []
         for p in q.keys():
-            print("%s: %s" % (p, "succeeds" if succeeds(p) else "fails"))
+            if self.succeeds(p,q):
+                self.success.append(p)
+                if(q[p].cmd == '-'):
+                    self.map.moveUnit(p,q[p].target)
+            else:
+                self.fails.append(p)
+        print(q)
+        print(self.success)
+        print(self.fails)
+
         #start = q.keys()[0]
         #solve(start)
 
-    def active(p):
+    def active(self,p,q):
         if p not in q:
             return False
         c = q[p]
         if c.cmd == 'S':
-            if any([x for x in c.atk if active(x)]):
+            if any([x for x in c.atk if self.active(x,q)]):
                 return False
         return True
 
-    def support(p):
-        return sum([1 for x in q[p].sup if active(x)])
+    def support(self,p,q):
+        return sum([1 for x in q[p].sup if self.active(x,q)])
 
-    def succeeds(p):
+    def succeeds(self,p,q):
         c = q[p]
         if c.cmd == 'H':
             if not c.atk:
                 return True
-            return max([support(x) for x in c.atk]) <= support(p)
+            return max([self.support(x,q) for x in c.atk]) <= self.support(p,q)
         if c.cmd == '-':
-            if not active(c.target) or (q[c.target].cmd == '-' and succeeds(c.target)):
+            if not self.active(c.target,q) or (q[c.target].cmd == '-' and self.succeeds(c.target,q)):
                 return True
-            return support(p) > support(c.target)
+            return self.support(p,q) > self.support(c.target,q)
         if c.cmd == 'S':
-            return not active(p)
+            return not self.active(p,q)
 
 
 
     def retreat(self):
         pass
-
-    def isValidCommand(self, cmd):
-        if(self.command[2][0] == "H"): #holding
-            return True
-        elif(self.command[2][0] == "-"):#attacking
-            if(self.map.adjacent(self.command[1], self.command[3])):
-                return True
-            return False
-        elif(self.command[2][0] == "S"): #supporting
-            if(self.map.adjacent(self.command[1],self.command[5])):
-                if(self.map.adjacent(self.command[3],self.command[5])):
-                    return True
-            return False
-        elif(self.command[2][0] == "C"): #convoying
-            if(self.map.adjacent(self.command[1],self.command[5])):
-                if(self.map.adjacent(self.command[3],self.command[5])):
-                    return True
-            return False
 
     def build(self):
         self.unitsToBuild = {1:0,2:0,3:0,4:0,5:0,6:0,7:0}
@@ -372,7 +378,7 @@ class diplomacyBot():
         #executes proper code for given command
         for i in self.viableCommands:
             if cmd.upper().startswith(i):
-                if(self.starting == True or self.running == True or i == "START"):
+                if((self.starting == True and ((i == "START") or (i == "ADD ME"))) or self.running == True or i == "START"):
                     print("command detected: ",i)
                     self.viableCommands[i]()
                     iscommand = True
