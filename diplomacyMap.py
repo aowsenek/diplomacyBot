@@ -153,14 +153,14 @@ class Map:
     }
 
     def __init__(self):
-        self._baseMap = Image.open('diplomacyMap.png')
+        self._baseMap = Image.open('diplomacy_map.png')
         self._draw = ImageDraw.Draw(self._baseMap)
         self._palette = np.zeros(256 * 3, dtype=np.uint8)
 
         for name, province in self.provinces.items():
             (x, y) = coordinates[name]
-            font = ImageFont.truetype("arial.ttf", 40)
-            self._draw.text((x, y), name, (0,0,0), font=font)
+        #    font = ImageFont.truetype("arial.ttf", 40)
+            self._draw.text((x, y), name, (0,0,0))#, font=font)
 
         self._setColor(1, BORDER)
         self._setColor(2, IMPASSABLE)
