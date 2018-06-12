@@ -8,6 +8,7 @@ from slackbot_settings import API_TOKEN
 RTM_READ_DELAY = 1 # 1 second delay between reading from RTM
 EXAMPLE_COMMAND = "do"
 MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
+
 class Command:
     def __init__(self):
         self.cmd = 'H'
@@ -31,6 +32,7 @@ class diplomacyBot():
         self.resolving = False
         self.players={}
         self.run()
+
 #============================= Messaging
     def send(self,message):
         self.sc.api_call(
@@ -57,6 +59,7 @@ class diplomacyBot():
                    as_user="true",
                    filename=mapname,
                    file=open(mapname, 'rb'))
+
 #============================= User Interface
     def start(self):
         try:
@@ -125,6 +128,7 @@ class diplomacyBot():
             self.players[i][1] = assign[it]
             it += 1
         print(self.players)
+
 #============================== Needs Work
     def show(self, opt = None):#needs to implement map generation with the map library
         if(opt): self.command = opt
@@ -132,7 +136,6 @@ class diplomacyBot():
             if(self.command[1] == "HELP"):
                 self.im(self.current, "Type \"show current map\" or \"show arrow map\"") #Outdated)
             elif(self.command[1][0] == "M"):
-                self.map.getMap()
                 self.map.saveMap("current_units.png")
                 self.showMap(self.current, "current_units.png")
             else:
@@ -147,6 +150,7 @@ class diplomacyBot():
                 self.running = False
                 self.send("Game Over! The winner is "+self.countries[ctry])
                 return
+
 #============================== Game movement interface
     def standardizeOrder(self, cmd):
             typ = cmd[0][0]
@@ -415,7 +419,6 @@ class diplomacyBot():
                 time.sleep(RTM_READ_DELAY)
         else:
             print("Connection failed. Exception traceback printed above.")
-
 
 if __name__ == "__main__":
     bot = diplomacyBot()

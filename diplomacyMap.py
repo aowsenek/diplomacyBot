@@ -287,7 +287,7 @@ class Map:
                 if start.occupiedCoast == 'BAL':
                     assert end in ['GAS', 'BAL', 'POR']
                 else:
-                    assert end != 'GAS'
+                    assert end in ['WES', 'LYO', 'MAR']
                 start.occupiedCoast = None
             elif start in ['STP', 'BUL']:
                 assert end == start.occupiedCoast or end in start.occupiedCoast.neighbors
