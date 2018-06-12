@@ -123,7 +123,7 @@ class diplomacyBot():
         assign = random.sample(range(1,8),len(self.players))
         it = 0
         for i in self.players:
-            self.players[i][1] = assign[it]
+            self.players[i][1] = 1#assign[it]
             it += 1
         print(self.players)
 
@@ -182,8 +182,11 @@ class diplomacyBot():
 
     def verify(self):
         ctry = self.players[self.sender][1]
-        ordrs = "Your entered orders are:\n "+"\n".join(self.orders[ctry])
-        self.im(self.sender, ordrs[:-1])
+        ordrs = "Your entered orders are:\n "
+        for i in self.orders[ctry]:
+            ordrs += " ".join(i)+"\n"
+        print(ordrs)
+        self.im(self.sender, ordrs[:])
 
     def springFall(self):
         if(self.resolving == False):
@@ -222,11 +225,11 @@ class diplomacyBot():
                 self.resolving = True
                 if(self.fails == []):
                     self.resolving = False
-                    self.season = "WINTER"
+                    self.season = "FALL"
                 self.springFall() #tells players to send in retreat orders if resolving, else announces next season
             else:
                 self.retreat() #handles retreat orders
-                self.season = "WINTER"
+                self.season = "FALL"
                 self.resolving = False
                 self.springFall()
         elif(self.season == "FALL"):
@@ -294,7 +297,7 @@ class diplomacyBot():
         print(q)
         print(self.success)
         print(self.fails)
-
+        self.orders = { 1:[],2:[],3:[],4:[],5:[],6:[],7:[]}
         #start = q.keys()[0]
         #solve(start)
 
@@ -330,17 +333,15 @@ class diplomacyBot():
         self.unitsToBuild = {1:0,2:0,3:0,4:0,5:0,6:0,7:0}
         for i in self.players:
             ctry = self.players[i][1]
-            supplyDepots = 0
             units = self.map.getUnitsByCountry(ctry)
-            for t,loc in units:
-                if(self.map.isSupplyDepot(loc)):
-                    supplyDepots += 1
+            for loc,u in units:
                 self.map.changeController(loc,ctry)
+            supplyDepots =  self.map.getOwnedSupplyDepots(ctry)
             self.unitsToBuild[ctry] =  supplyDepots - len(units)
             self.supplyDepots[ctry] = supplyDepots
             self.win()
         self.winter()
-        
+
     def resolveWinterOrders(self):
         for i in self.players:
             ctry = self.players[i][1]
