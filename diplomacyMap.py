@@ -316,6 +316,11 @@ class Map:
     def isSupplyDepot(self, province):
         return self.provinces[province].isSupplyDepot
 
+    def getOwnedSupplyDepots(self, controllerID):
+        return [name for name, p in self.provinces.items() \
+            if p.isSupplyDepot and p.controller == controllerID]
+
+
     def changeController(self, province, controllerID):
         p = self.provinces[province]
         p.controller = controllerID
@@ -329,7 +334,8 @@ class Map:
         return not self.isLand(self.province)
 
 # Testing - too lazy to remove
-# m = Map()
+m = Map()
+print(m.getOwnedSupplyDepots(1))
 #
 # m.placeUnit('A', 0, 'MUN')
 # m.placeUnit('A', 0, 'KIE')
