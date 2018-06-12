@@ -132,7 +132,7 @@ class diplomacyBot():
             self.players[i][1] = assign[it]
             self.ready[assign[it]] = False
             it += 1
-        print(self.players)
+        #print(self.players)
 
 #============================== Needs Work
     def show(self, opt = None):#needs to implement map generation with the map library
@@ -159,13 +159,15 @@ class diplomacyBot():
             self.adjudicate()
 
     def help(self):
-        self.im(self.current,"Available Commands: Start, Add Me, Ready, Not Ready, Adjudicate, Show Map, Show Labels, Verify\n"
+        self.im(self.current,"Available Commands: Start, Add Me, Ready, Not Ready, Adjudicate, Show Map, Show Labels, Save, Load, Verify\n"
                             "Start: Starts new game. The first start command begins player registration, the second begins the game.\n"
                             "Add me: Registers the sender as a player in the starting game.\n"
                             "Ready/NotReady: If all players are ready, the game adjudicates before the timer and without manual coordination.\n"
                             "Adjudicate: Progresses a season and resolves movement/retreat/creation orders.\n"
                             "Show Map: Shows map with units."
                             "Show Labels: Shows map with territory labels and no units.\n"
+                            "Save <filename>: Saves game state as <filename>.\n"
+                            "Load <filename>: Loads game state from <filename>."
                             "Verify: Repeats back orders a player input for manual verification.")
 
     def win(self): #ties not implemented yet
@@ -175,6 +177,20 @@ class diplomacyBot():
                 self.running = False
                 self.send("Game Over! The winner is "+self.countries[ctry])
                 return
+    def save(self):
+        try:
+            filename = self.command[1]
+            self.map.saveState(filename)
+        except:
+            self.im(self.current,"You need to specify a filename to save as.")
+
+    def load(self):
+        try:
+            filename = self.command[1]
+            self.map.loadState(filename)
+        except:
+            self.im(self.current,"You need to specify a filename to load or specify a filename a game was saved as.")
+
 
 #============================== Game movement interface
     def standardizeOrder(self, cmd):
@@ -202,7 +218,7 @@ class diplomacyBot():
             idx += 1
         self.command = self.standardizeOrder(self.command)
         self.orders[ctry].append(self.command[:])
-        print(self.orders[ctry])
+        #print(self.orders[ctry])
         self.send("Added standardized order: "+" ".join(self.command))
 
     def verify(self):
@@ -210,7 +226,7 @@ class diplomacyBot():
         ordrs = "Your entered orders are:\n "
         for i in self.orders[ctry]:
             ordrs += " ".join(i)+"\n"
-        print(ordrs)
+        #print(ordrs)
         self.im(self.sender, ordrs[:])
 
     def springFall(self):
@@ -221,8 +237,9 @@ class diplomacyBot():
             self.show(opt = "map")
             self.send("The "+self.season.lower().capitalize()+" "+str(self.date)+" season is starting")
             self.send("Send in your retreat orders at this time.")
-            #for i in self.retreatingUnits:
-            #   self.im(self.map.getUnitByProvince(i).controllerID,"Your unit at "+i+" needs to retreat")
+            self.send("Sending an invalid order will cause the unit to be destroyed.")
+            for i,loc in self.retreats:
+               self.im(i.controllerID,"Your unit at "+loc+" needs to retreat")
 
     def winter(self):
         self.send("The "+self.season.lower().capitalize()+" "+str(self.date)+" season is starting")
@@ -288,7 +305,7 @@ class diplomacyBot():
         for i in self.countries:
             orders = orders + self.orders[i]
         for command in orders:
-            print(command)
+         #   print(command)
             if command[2] == '-':
                 _, f,a,t = command
                 q[f].cmd = '-'
@@ -316,7 +333,9 @@ class diplomacyBot():
                     try:
                         self.map.moveUnit(p,q[p].target)
                     except AssertionError:
-                        self.retreats.append(q[p].target)
+                        self.retreats.append((self.map.getUnitByProvince(q[p].target),q[p].target)) #unit,prev location
+                        self.map.deleteUnit(q[p].target)
+                        self.map.moveUnit(p,q[p].target)
                 else:
                     pass
             else:
@@ -324,12 +343,9 @@ class diplomacyBot():
         for i in self.fails:
             unit = self.map.getUnitByProvince(i)
 
-        print(q)
-        print(self.success)
-        print(self.fails)
-        self.orders = { 1:[],2:[],3:[],4:[],5:[],6:[],7:[]}
-        #start = q.keys()[0]
-        #solve(start)
+        #print(self.success)
+        #print(self.fails)
+        self.orders = {1:[],2:[],3:[],4:[],5:[],6:[],7:[]}
 
     def active(self,p,q):
         if p not in q:
@@ -357,7 +373,16 @@ class diplomacyBot():
             return not self.active(p,q)
 
     def retreat(self):
-        pass
+        for u,loc in self.retreats:
+            try:
+                newLoc = None
+                for i in self.orders.values():
+                    if(i[1] == loc):
+                        newLoc = i[3]
+                if(newLoc):
+                    if(self.map.isValidRetreat(u.type, loc, newLoc):
+                        self.map.placeUnit(u.type, u.controllerID, newLoc)
+            except AssertionError: pass
 
     def build(self):
         self.unitsToBuild = {1:0,2:0,3:0,4:0,5:0,6:0,7:0}
@@ -366,7 +391,7 @@ class diplomacyBot():
             units = self.map.getUnitsByCountry(ctry)
             for loc,u in units:
                 self.map.changeController(loc,ctry)
-            supplyDepots =  self.map.getOwnedSupplyDepots(ctry)
+            supplyDepots =  len(self.map.getOwnedSupplyDepots(ctry))
             self.unitsToBuild[ctry] =  supplyDepots - len(units)
             self.supplyDepots[ctry] = supplyDepots
             self.win()
@@ -414,6 +439,8 @@ class diplomacyBot():
                 "A ":self.ordered,
                 "ADJUDICATE":self.adjudicate,
                 "VERIFY":self.verify,
+                "SAVE":self.save,
+                "LOAD":self.load,
                 "SHOW":self.show}#list of commands
         iscommand = False
         #variables needed for functions that can't be passed with the dictionary
@@ -425,7 +452,7 @@ class diplomacyBot():
             if cmd.upper().startswith(i):
                 iscommand = True
                 if((self.starting == True and ((i == "START") or (i == "ADD ME"))) or self.running == True or i == "START" or i == "HELP"):
-                    print("command detected: ",i)
+                    #print("command detected: ",i)
                     self.viableCommands[i]()
                 else:
                     self.send("A game is not currently starting")
@@ -440,7 +467,6 @@ class diplomacyBot():
                 if user_id == self.bot_id:
                     return message, event["channel"], event["user"]
                 elif event["channel"][0] == "D" and self.bot_id != event["user"]:
-                    print("DM'ed")
                     return event["text"], event["channel"], event["user"]
         return None, None, None
 
