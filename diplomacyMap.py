@@ -267,19 +267,31 @@ class Map:
         self.provinces[province].unit = Unit(type, controllerID)
 
     def moveUnit(self, start, end):
+        assert start != end
         assert self.provinces[start].unit
         assert not self.provinces[end].unit
-        if self.provinces[start].unit.type == 'F':
+        assert end in self.provinces[start].neighbors
+
+        if self.provinces[start].unit.type == 'A':
+            assert self.isLand(end)
+        elif self.provinces[start].unit.type == 'F':
             assert self.provinces[end].supportsFleets
             # If they're both land, do they share a coastline?
-            if isLand(start) and isLand(end):
-                assert [isOcean(p) for p in
+            if self.isLand(start) and self.isLand(end):
+                assert [self.isOcean(p) for p in
                         self.provinces[end].neighbors &
                         self.provinces[start].neighbors]
             if end in ['SPA', 'STP', 'BUL']:
                 end.occupiedCoast = start
-            if start in ['SPA', 'STP', 'BUL']:
-                pass
+            if start == 'SPA':
+                if start.occupiedCoast == 'BAL':
+                    assert end in ['GAS', 'BAL', 'POR']
+                else:
+                    assert end != 'GAS'
+                start.occupiedCoast = None
+            elif start in ['STP', 'BUL']:
+                assert end == start.occupiedCoast or end in start.occupiedCoast.neighbors
+                start.occupiedCoast = None
 
         self.provinces[end].unit = self.provinces[start].unit
         self.provinces[start].unit = None
