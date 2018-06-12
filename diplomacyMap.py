@@ -164,7 +164,7 @@ class Map:
             (x, y) = coordinates[name]
             font = ImageFont.truetype(self.font_path, 40)
             w, h = draw.textsize(name, font)
-            draw.text((x - (w/2), y - (h/2)), name, (0,0,0), font=font)
+            draw.text((x - (w//2), y - (h//2)), name, (0,0,0), font=font)
 
         self._setColor(1, BORDER)
         self._setColor(2, IMPASSABLE)
@@ -204,7 +204,8 @@ class Map:
 
         x, y = coordinates
         w, h = size
-        map.paste(icon, (int(x) - (w//2), int(y) - (h//2)), mask)
+        xo, yo = (0, (h // 2) + 10)
+        map.paste(icon, (int(x) - (w//2) + xo, int(y) - (h//2) + yo), mask)
 
     def _setColor(self, tileID, countryColor):
         # self._palette[tileID], self._palette[tileID + 256], self._palette[tileID + 512] = countryColor
@@ -267,34 +268,6 @@ class Map:
         self.provinces[province].unit = Unit(type, controllerID)
 
     def moveUnit(self, start, end):
-        # assert start != end
-        # assert self.provinces[start].unit
-        # assert not self.provinces[end].unit
-        # assert end in self.provinces[start].neighbors
-        #
-        # if self.provinces[start].unit.type == 'A':
-        #     assert self.isLand(end)
-        # elif self.provinces[start].unit.type == 'F':
-        #     assert self.provinces[end].supportsFleets
-        #     # If they're both land, do they share a coastline?
-        #     if self.isLand(start) and self.isLand(end):
-        #         assert [self.isOcean(p) for p in
-        #                 self.provinces[end].neighbors &
-        #                 self.provinces[start].neighbors]
-        #     # Special cases for provinces with two coasts
-        #     if end in ['SPA', 'STP', 'BUL']:
-        #         self.provinces[end].occupiedCoast = start
-        #     if start == 'SPA':
-        #         if self.provinces[start].occupiedCoast == 'BAL':
-        #             assert end in ['GAS', 'BAL', 'POR']
-        #         else:
-        #             assert end in ['WES', 'LYO', 'MAR']
-        #         self.provinces[start].occupiedCoast = None
-        #     elif start in ['STP', 'BUL']:
-        #         assert end == self.provinces[start].occupiedCoast \
-        #                 or end in self.provinces[start].occupiedCoast.neighbors
-        #         self.provinces[start].occupiedCoast = None
-
         self.provinces[end].unit = self.provinces[start].unit
         self.provinces[start].unit = None
 
@@ -317,7 +290,7 @@ class Map:
         return self.provinces[province].isSupplyDepot
 
     def getOwnedSupplyDepots(self, controllerID):
-        return [name for name, p in self.provinces.items() \
+        return [name for name, p in self.provinces.items()
             if p.isSupplyDepot and p.controller == controllerID]
 
 
@@ -341,101 +314,59 @@ class Map:
         with open(filename) as f:
             self.provinces, self._palette = pickle.load(f)
 
+    def isValidRetreat(self, type, start, end):
+        if not self._legalMove(type, start, end) or self.provinces[end].unit:
+            return False
+
+        if type == 'A':
+            return self.isLand(end)
+
+        if type == 'F':
+            return self.provinces[start].supportsFleets
+
+    def _legalMove(self, unitType, start, end):
+        if start == end:
+            return False
+
+        if unitType == 'A':
+            if not self.isLand(end) or not self.adjacent(start, end):
+                return False
+        elif unitType == 'F':
+            if not self.provinces[end].supportsFleets:
+                return False
+
+            # If they're both land, do they share a coastline?
+            if self.isLand(start) and self.isLand(end):
+                if not any([self.isOcean(p) for p in
+                        self.provinces[end].neighbors &
+                        self.provinces[start].neighbors]):
+                    return False
+
+            # Special cases for provinces with two coasts
+            # if end in ['SPA', 'STP', 'BUL']:
+            #     self.provinces[end].occupiedCoast = start
+            # if start in ['SPA', 'STP', 'BUL']:
+            #     self.provinces[start].occupiedCoast = None
+            if start == 'SPA':
+                if self.provinces[start].occupiedCoast == 'BAL':
+                    if end not in ['GAS', 'BAL', 'POR']:
+                        return False
+                else:
+                    if end not in ['WES', 'LYO', 'MAR']:
+                        return False
+                self.provinces[start].occupiedCoast = None
+            elif start in ['STP', 'BUL']:
+                coast = self.provinces[start].occupiedCoast
+                if end != coast and end not in coast.neighbors:
+                    return False
+        else:
+            raise Exception('Invalid unit type: %s' % unitType)
+
+        return True
+
 # Testing - too lazy to remove
-# m = Map()
-# m.placeUnit('F', 1, 'NAO')
-# m.saveState("test")
-# n = Map()
-# n.loadState("test")
-# n.displayMap()
-# print(m.getOwnedSupplyDepots(1))
-#
-# m.placeUnit('A', 0, 'MUN')
-# m.placeUnit('A', 0, 'KIE')
-# m.placeUnit('A', 0, 'RUH')
-# m.placeUnit('A', 0, 'TYR')
-# m.placeUnit('A', 1, 'BOH')
-# m.placeUnit('A', 1, 'VIE')
-#
-# commands = [
-#     ('A', 'MUN', 'BOH'),
-#     ('A', 'BOH', 'TYR'),
-#     ('A', 'TYR', 'MUN'),
-# ]
-#
-# class Command:
-#     def __init__(self):
-#         self.cmd = 'H'
-#         self.target = None
-#         self.atk = []
-#         self.sup = []
-#
-#     def __repr__(self):
-#         return '%s (%s vs %s)' % (self.cmd, self.atk, self.sup)
-#
-# q = { n: Command() for n, p in m.provinces.items() if p.unit != None }
-#
-# for command in commands:
-#     if command[0] == 'A':
-#         _, f, t = command
-#         q[f].cmd = 'A'
-#         q[f].target = t
-#         if t in q:
-#             q[t].atk.append(f)
-#     elif command[0] == 'S':
-#         _, s, f, t = command
-#         q[s].cmd = 'S'
-#         q[t].atk.append(s)
-#         q[f].sup.append(s)
-#     elif command[0] == 'H':
-#         pass
-#
-# def active(p):
-#     if p not in q:
-#         return False
-#     c = q[p]
-#     if c.cmd == 'S':
-#         if any([x for x in c.atk if active(x)]):
-#             return False
-#     return True
-#
-# def support(p):
-#     return sum([1 for x in q[p].sup if active(x)])
-#
-# def succeeds(p):
-#     c = q[p]
-#     if c.cmd == 'H':
-#         if not c.atk:
-#             return True
-#         return max([support(x) for x in c.atk]) <= support(p)
-#     if c.cmd == 'A':
-#         if not active(c.target) or (q[c.target].cmd == 'A' and succeeds(c.target)):
-#             return True
-#         return support(p) > support(c.target)
-#     if c.cmd == 'S':
-#         return not active(p)
-#
-# for p in q.keys():
-#     # print("On: %s" % p)
-#     print("%s: %s" % (p, "succeeds" if succeeds(p) else "fails"))
-#
-# start = q.keys()[0]
-# solve(start)
-#
-# print(q)
-# class Command:
-#     def __init__(self, type, source, dest=None, support=None):
-#         self.type = type
-#         self.source = source
-#         self.dest = dest
-#         self.support = support
-#
-# y = [
-#     Command('A', 'NAO', 'NWG'),
-#     Command('A', 'UKR', 'MOS'),
-#     Command('A', 'NTH', 'HEL'),
-#     Command('A', 'LYO', 'ION'),
-# ]
-#
-# m.saveMap('maptest.png', commands=y)
-# m.displayMap(commands=y)
+m = Map()
+m.displayMap()
+# print(m.isValidRetreat('A', 'FIN', 'BOT'))
+# print(m.isValidRetreat('A', 'FIN', 'SWE'))
+# print(m.isValidRetreat('A', 'FIN', 'STP'))
