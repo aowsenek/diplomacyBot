@@ -29,6 +29,7 @@ class diplomacyBot():
         self.starting = False
         self.running = False
         self.season = "SPRING"
+        self.date = 1901
         self.resolving = False
         self.players={}
         self.run()
@@ -73,7 +74,8 @@ class diplomacyBot():
         if(self.starting == False):
             self.send("@channel A new game of Diplomacy is starting...\n"
                       "Message \"@bender add me\" if you want to join the game\n"
-                      "Message \"@bender Start\" when all members have registered and you are ready to play")
+                      "Message \"@bender Start\" when all members have registered and you are ready to play\n"
+                      "Message \"@bender help\" if you need a list of all available commands")
             self.starting = True
             self.map = Map()
             self.addPlayer()
@@ -102,8 +104,11 @@ class diplomacyBot():
 
     def addPlayer(self):
         info = self.sc.api_call("users.info",user=self.sender)
+        if(self.starting == False):
+            self.send("A game is not in the regristration phase at the moment.")
+            return
         if(self.sender not in self.players):
-            self.players[self.sender] = [str(info['user']['name']),""]
+            self.players[self.sender] = [str(info['user']['name']),""] #string username, countryID, ready for adj
             self.send("Added player: "+str(info['user']['name']))
         else:
             self.send("You cannot be in the same game twice")
@@ -119,20 +124,20 @@ class diplomacyBot():
 
         self.orders = { 1:[],2:[],3:[],4:[],5:[],6:[],7:[]}
         self.supplyDepots = {1:4,2:3,3:3,4:3,5:3,6:3,7:3}
+        self.ready = {}
 
-        assign = random.sample(range(1,8),len(self.players))
+        assign = random.sample(range(1,2),len(self.players))
         it = 0
         for i in self.players:
-            self.players[i][1] = 1#assign[it]
+            self.players[i][1] = assign[it]
+            self.ready[assign[it]] = False
             it += 1
         print(self.players)
 
 #============================== Needs Work
     def show(self, opt = None):#needs to implement map generation with the map library
         if(opt): self.command = opt
-        if(self.command[1] == "HELP"):
-            self.im(self.current, "Type \"show unit map\" or \"show labeled map\"") #Outdated)
-        elif(self.command[1][0] == "M" or self.command[1][0] == "U"):
+        if(self.command[1][0] == "M" or self.command[1][0] == "U"):
             self.map.getMap()
             self.map.saveMap("current_units.png")
             self.showMap(self.current, "current_units.png")
@@ -142,6 +147,26 @@ class diplomacyBot():
             self.map.getMap()
             self.map.saveMap("current_units.png")
             self.showMap(self.current, "current_units.png")
+
+    def playerReady(self):
+        ctry = self.players[self.sender][1]
+        if(self.command[0][0] == "N"):
+            self.ready[ctry] = False
+        else:
+            self.ready[ctry] = True
+        if(all(ready == True for ready in self.ready.values())):
+            self.current = self.diplomacy
+            self.adjudicate()
+
+    def help(self):
+        self.im(self.current,"Available Commands: Start, Add Me, Ready, Not Ready, Adjudicate, Show Map, Show Labels, Verify\n"
+                            "Start: Starts new game. The first start command begins player registration, the second begins the game.\n"
+                            "Add me: Registers the sender as a player in the starting game.\n"
+                            "Ready/NotReady: If all players are ready, the game adjudicates before the timer and without manual coordination.\n"
+                            "Adjudicate: Progresses a season and resolves movement/retreat/creation orders.\n"
+                            "Show Map: Shows map with units."
+                            "Show Labels: Shows map with territory labels and no units.\n"
+                            "Verify: Repeats back orders a player input for manual verification.")
 
     def win(self): #ties not implemented yet
         for i in self.players:
@@ -190,17 +215,18 @@ class diplomacyBot():
 
     def springFall(self):
         if(self.resolving == False):
-            self.send("The "+self.season.lower()+" season is starting")
+            self.send("The "+self.season.lower().capitalize()+" "+str(self.date)+" season is starting")
             self.send("Send in your movement orders at this time.")
         else:
             self.show(opt = "map")
-            self.send("The "+self.season.lower()+" season is resolving.")
-            self.send("Please send in your retreat orders at this time.")
+            self.send("The "+self.season.lower().capitalize()+" "+str(self.date)+" season is starting")
+            self.send("Send in your retreat orders at this time.")
             #for i in self.retreatingUnits:
             #   self.im(self.map.getUnitByProvince(i).controllerID,"Your unit at "+i+" needs to retreat")
 
     def winter(self):
-        self.send("The Winter Season is starting.")
+        self.send("The "+self.season.lower().capitalize()+" "+str(self.date)+" season is starting")
+        self.send("Send in your unit creation/destruction orders at this time.")
         for i in self.players:
             ctry = self.players[i][1]
             if(self.unitsToBuild[ctry] > 0):
@@ -219,11 +245,12 @@ class diplomacyBot():
         if(self.current != self.diplomacy):
             self.send("Adjudication must happen in the diplomacy channel.")
             return
+        self.ready = dict.fromkeys(self.ready,False)
         if(self.season == "SPRING"):
             if(self.resolving == False):
                 self.move()
                 self.resolving = True
-                if(self.fails == []):
+                if(self.retreats == []):
                     self.resolving = False
                     self.season = "FALL"
                 self.springFall() #tells players to send in retreat orders if resolving, else announces next season
@@ -236,7 +263,7 @@ class diplomacyBot():
             if(self.resolving == False):
                 self.move()
                 self.resolving = True
-                if(self.fails == []):
+                if(self.retreats == []):
                     self.resolving = False
                     self.season = "WINTER"
         #        self.springFall()
@@ -252,9 +279,8 @@ class diplomacyBot():
             else:
                 self.resolveWinterOrders()
                 self.season = "SPRING"
+                self.date += 1
                 self.resolving = False
-                self.springFall()
-
 
     def move(self):
         q = { n: Command() for n, p in self.map.provinces.items() if p.unit != None }
@@ -282,18 +308,22 @@ class diplomacyBot():
                 pass
         self.success = []
         self.fails = []
+        self.retreats = []
         for p in q.keys():
             if self.succeeds(p,q):
+                self.success.append(p)
                 if(q[p].cmd == '-'):
                     try:
                         self.map.moveUnit(p,q[p].target)
-                        self.success.append(p)
                     except AssertionError:
-                        self.fails.append(p)
+                        self.retreats.append(q[p].target)
                 else:
-                    self.success.append(p)
+                    pass
             else:
                 self.fails.append(p)
+        for i in self.fails:
+            unit = self.map.getUnitByProvince(i)
+
         print(q)
         print(self.success)
         print(self.fails)
@@ -377,6 +407,9 @@ class diplomacyBot():
         self.viableCommands = {
                 "START":self.start,
                 "ADD ME":self.addPlayer,
+                "READY":self.playerReady,
+                "NOT READY":self.playerReady,
+                "HELP":self.help,
                 "F ":self.ordered,
                 "A ":self.ordered,
                 "ADJUDICATE":self.adjudicate,
@@ -390,10 +423,10 @@ class diplomacyBot():
         #executes proper code for given command
         for i in self.viableCommands:
             if cmd.upper().startswith(i):
-                if((self.starting == True and ((i == "START") or (i == "ADD ME"))) or self.running == True or i == "START"):
+                iscommand = True
+                if((self.starting == True and ((i == "START") or (i == "ADD ME"))) or self.running == True or i == "START" or i == "HELP"):
                     print("command detected: ",i)
                     self.viableCommands[i]()
-                    iscommand = True
                 else:
                     self.send("A game is not currently starting")
 
