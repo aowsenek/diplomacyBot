@@ -130,16 +130,18 @@ class diplomacyBot():
 #============================== Needs Work
     def show(self, opt = None):#needs to implement map generation with the map library
         if(opt): self.command = opt
-        try:
-            if(self.command[1] == "HELP"):
-                self.im(self.current, "Type \"show current map\" or \"show arrow map\"") #Outdated)
-            elif(self.command[1][0] == "M"):
-                self.map.saveMap("current_units.png")
-                self.showMap(self.current, "current_units.png")
-            else:
-                self.im(self.current, "That hasn't been implemented yet")
-        except:
-            self.showMap(self.current, "diplomacy_map.png")
+        if(self.command[1] == "HELP"):
+            self.im(self.current, "Type \"show unit map\" or \"show labeled map\"") #Outdated)
+        elif(self.command[1][0] == "M" or self.command[1][0] == "U"):
+            self.map.getMap()
+            self.map.saveMap("current_units.png")
+            self.showMap(self.current, "current_units.png")
+        elif(self.command[1][0] == "L"):
+            self.showMap(self.current, "labeledMap.png")
+        else:
+            self.map.getMap()
+            self.map.saveMap("current_units.png")
+            self.showMap(self.current, "current_units.png")
 
     def win(self): #ties not implemented yet
         for i in self.players:
@@ -211,6 +213,9 @@ class diplomacyBot():
 
 #self.command[Type, location1, action1, location2, action2, location3]
     def adjudicate(self):
+        if(self.current != self.diplomacy):
+            self.send("Adjudication must happen in the diplomacy channel.")
+            return
         if(self.season == "SPRING"):
             if(self.resolving == False):
                 self.move()
@@ -276,9 +281,14 @@ class diplomacyBot():
         self.fails = []
         for p in q.keys():
             if self.succeeds(p,q):
-                self.success.append(p)
                 if(q[p].cmd == '-'):
-                    self.map.moveUnit(p,q[p].target)
+                    try:
+                        self.map.moveUnit(p,q[p].target)
+                        self.success.append(p)
+                    except AssertionError:
+                        self.fails.append(p)
+                else:
+                    self.success.append(p)
             else:
                 self.fails.append(p)
         print(q)
