@@ -132,7 +132,7 @@ class diplomacyBot():
             self.players[i][1] = assign[it]
             self.ready[assign[it]] = False
             it += 1
-        print(self.players)
+        #print(self.players)
 
 #============================== Needs Work
     def show(self, opt = None):#needs to implement map generation with the map library
@@ -218,7 +218,7 @@ class diplomacyBot():
             idx += 1
         self.command = self.standardizeOrder(self.command)
         self.orders[ctry].append(self.command[:])
-        print(self.orders[ctry])
+        #print(self.orders[ctry])
         self.send("Added standardized order: "+" ".join(self.command))
 
     def verify(self):
@@ -226,7 +226,7 @@ class diplomacyBot():
         ordrs = "Your entered orders are:\n "
         for i in self.orders[ctry]:
             ordrs += " ".join(i)+"\n"
-        print(ordrs)
+        #print(ordrs)
         self.im(self.sender, ordrs[:])
 
     def springFall(self):
@@ -305,7 +305,7 @@ class diplomacyBot():
         for i in self.countries:
             orders = orders + self.orders[i]
         for command in orders:
-            print(command)
+         #   print(command)
             if command[2] == '-':
                 _, f,a,t = command
                 q[f].cmd = '-'
@@ -343,10 +343,9 @@ class diplomacyBot():
         for i in self.fails:
             unit = self.map.getUnitByProvince(i)
 
-        print(q)
-        print(self.success)
-        print(self.fails)
-        self.orders = { 1:[],2:[],3:[],4:[],5:[],6:[],7:[]}
+        #print(self.success)
+        #print(self.fails)
+        self.orders = {1:[],2:[],3:[],4:[],5:[],6:[],7:[]}
 
     def active(self,p,q):
         if p not in q:
@@ -381,7 +380,7 @@ class diplomacyBot():
                     if(i[1] == loc):
                         newLoc = i[3]
                 if(newLoc):
-                    if(self.map.isValidMove(u.type, loc, newLoc):
+                    if(self.map.isValidRetreat(u.type, loc, newLoc):
                         self.map.placeUnit(u.type, u.controllerID, newLoc)
             except AssertionError: pass
 
@@ -453,7 +452,7 @@ class diplomacyBot():
             if cmd.upper().startswith(i):
                 iscommand = True
                 if((self.starting == True and ((i == "START") or (i == "ADD ME"))) or self.running == True or i == "START" or i == "HELP"):
-                    print("command detected: ",i)
+                    #print("command detected: ",i)
                     self.viableCommands[i]()
                 else:
                     self.send("A game is not currently starting")
@@ -468,7 +467,6 @@ class diplomacyBot():
                 if user_id == self.bot_id:
                     return message, event["channel"], event["user"]
                 elif event["channel"][0] == "D" and self.bot_id != event["user"]:
-                    print("DM'ed")
                     return event["text"], event["channel"], event["user"]
         return None, None, None
 
