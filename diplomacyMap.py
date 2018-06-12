@@ -1,4 +1,4 @@
-import platform, math
+import platform, math, pickle
 
 from PIL import Image, ImagePalette, ImageFont, ImageDraw
 from copy import deepcopy
@@ -151,8 +151,8 @@ class Map:
 
     def __init__(self):
         self._baseMap = Image.open('map.png')
-        self._draw = ImageDraw.Draw(self._baseMap)
         self._palette = np.zeros(256 * 3, dtype=np.uint8)
+        draw = ImageDraw.Draw(self._baseMap)
 
         if platform.system() == 'Windows':
             self.font_path = 'arial.ttf'
@@ -163,8 +163,8 @@ class Map:
         for name, province in self.provinces.items():
             (x, y) = coordinates[name]
             font = ImageFont.truetype(self.font_path, 40)
-            w, h = self._draw.textsize(name, font)
-            self._draw.text((x - (w/2), y - (h/2)), name, (0,0,0), font=font)
+            w, h = draw.textsize(name, font)
+            draw.text((x - (w/2), y - (h/2)), name, (0,0,0), font=font)
 
         self._setColor(1, BORDER)
         self._setColor(2, IMPASSABLE)
@@ -333,9 +333,22 @@ class Map:
     def isOcean(self, province):
         return not self.isLand(self.province)
 
+    def saveState(self, filename):
+        with open(filename, 'w') as f:
+            pickle.dump((self.provinces, self._palette), f)
+
+    def loadState(self, filename):
+        with open(filename) as f:
+            self.provinces, self._palette = pickle.load(f)
+
 # Testing - too lazy to remove
-m = Map()
-print(m.getOwnedSupplyDepots(1))
+# m = Map()
+# m.placeUnit('F', 1, 'NAO')
+# m.saveState("test")
+# n = Map()
+# n.loadState("test")
+# n.displayMap()
+# print(m.getOwnedSupplyDepots(1))
 #
 # m.placeUnit('A', 0, 'MUN')
 # m.placeUnit('A', 0, 'KIE')
