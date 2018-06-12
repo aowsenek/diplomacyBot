@@ -225,9 +225,9 @@ class diplomacyBot():
                 if(self.fails == []):
                     self.resolving = False
                     self.season = "WINTER"
-                self.springFall()
+                self.springFall() #tells players to send in retreat orders if resolving, else announces next season
             else:
-                self.retreat()
+                self.retreat() #handles retreat orders
                 self.season = "WINTER"
                 self.resolving = False
                 self.springFall()
@@ -238,13 +238,13 @@ class diplomacyBot():
                 if(self.fails == []):
                     self.resolving = False
                     self.season = "WINTER"
-                self.springFall()
+        #        self.springFall()
             else:
                 self.retreat()
                 self.season = "WINTER"
                 self.resolving = False
-                self.springFall()
-        elif(self.season == "WINTER"):
+        #        self.springFall()
+        if(self.season == "WINTER"):
             if(self.resolving == False):
                 self.build()
                 self.resolving = True
