@@ -84,7 +84,7 @@ class Map:
         'AEG': Province(21, 'Aegean Sea', set(['BUL', 'GRE', 'ION', 'EAS', 'SMY', 'CON', 'BLA']), supportsFleets=True),
         'EAS': Province(22, 'Eastern Mediterranean Sea', set(['SMY', 'AEG', 'ION', 'SYR']), supportsFleets=True),
         # RUSSIA
-        'STP': Province(23, 'Saint Petersburg', set(['BAR', 'FIN', 'BOT', 'LVN', 'MOS']), supportsFleets=True, isSupplyDepot=True, unitType='F', controller=1),
+        'STP': Province(23, 'Saint Petersburg', set(['BAR', 'FIN', 'BOT', 'LVN', 'MOS']), supportsFleets=True, isSupplyDepot=True, unitType='F', occupiedCoast='BOT', controller=1),
         'FIN': Province(24, 'Finland', set(['NWY', 'SWE', 'BOT', 'LVN', 'STP']), supportsFleets=True, controller=1),
         'MOS': Province(25, 'Moscow', set(['STP', 'LVN', 'WAR', 'UKR', 'SEV']), isSupplyDepot=True, unitType='A', controller=1),
         'LVN': Province(26, 'Livonia', set(['FIN', 'BOT', 'SKA', 'PRU', 'WAR', 'MOS', 'STP']), supportsFleets=True, controller=1),
@@ -267,33 +267,33 @@ class Map:
         self.provinces[province].unit = Unit(type, controllerID)
 
     def moveUnit(self, start, end):
-        assert start != end
-        assert self.provinces[start].unit
-        assert not self.provinces[end].unit
-        assert end in self.provinces[start].neighbors
-
-        if self.provinces[start].unit.type == 'A':
-            assert self.isLand(end)
-        elif self.provinces[start].unit.type == 'F':
-            assert self.provinces[end].supportsFleets
-            # If they're both land, do they share a coastline?
-            if self.isLand(start) and self.isLand(end):
-                assert [self.isOcean(p) for p in
-                        self.provinces[end].neighbors &
-                        self.provinces[start].neighbors]
-            # Special cases for provinces with two coasts
-            if end in ['SPA', 'STP', 'BUL']:
-                self.provinces[end].occupiedCoast = start
-            if start == 'SPA':
-                if self.provinces[start].occupiedCoast == 'BAL':
-                    assert end in ['GAS', 'BAL', 'POR']
-                else:
-                    assert end in ['WES', 'LYO', 'MAR']
-                self.provinces[start].occupiedCoast = None
-            elif start in ['STP', 'BUL']:
-                assert end == self.provinces[start].occupiedCoast \
-                        or end in self.provinces[start].occupiedCoast.neighbors
-                self.provinces[start].occupiedCoast = None
+        # assert start != end
+        # assert self.provinces[start].unit
+        # assert not self.provinces[end].unit
+        # assert end in self.provinces[start].neighbors
+        #
+        # if self.provinces[start].unit.type == 'A':
+        #     assert self.isLand(end)
+        # elif self.provinces[start].unit.type == 'F':
+        #     assert self.provinces[end].supportsFleets
+        #     # If they're both land, do they share a coastline?
+        #     if self.isLand(start) and self.isLand(end):
+        #         assert [self.isOcean(p) for p in
+        #                 self.provinces[end].neighbors &
+        #                 self.provinces[start].neighbors]
+        #     # Special cases for provinces with two coasts
+        #     if end in ['SPA', 'STP', 'BUL']:
+        #         self.provinces[end].occupiedCoast = start
+        #     if start == 'SPA':
+        #         if self.provinces[start].occupiedCoast == 'BAL':
+        #             assert end in ['GAS', 'BAL', 'POR']
+        #         else:
+        #             assert end in ['WES', 'LYO', 'MAR']
+        #         self.provinces[start].occupiedCoast = None
+        #     elif start in ['STP', 'BUL']:
+        #         assert end == self.provinces[start].occupiedCoast \
+        #                 or end in self.provinces[start].occupiedCoast.neighbors
+        #         self.provinces[start].occupiedCoast = None
 
         self.provinces[end].unit = self.provinces[start].unit
         self.provinces[start].unit = None
@@ -328,11 +328,8 @@ class Map:
     def isOcean(self, province):
         return not self.isLand(self.province)
 
-    def isValidMove(self, start, end):
-
-
 # Testing - too lazy to remove
-m = Map()
+# m = Map()
 #
 # m.placeUnit('A', 0, 'MUN')
 # m.placeUnit('A', 0, 'KIE')
