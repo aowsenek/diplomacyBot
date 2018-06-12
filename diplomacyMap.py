@@ -281,17 +281,19 @@ class Map:
                 assert [self.isOcean(p) for p in
                         self.provinces[end].neighbors &
                         self.provinces[start].neighbors]
+            # Special cases for provinces with two coasts
             if end in ['SPA', 'STP', 'BUL']:
-                end.occupiedCoast = start
+                self.provinces[end].occupiedCoast = start
             if start == 'SPA':
-                if start.occupiedCoast == 'BAL':
+                if self.provinces[start].occupiedCoast == 'BAL':
                     assert end in ['GAS', 'BAL', 'POR']
                 else:
                     assert end in ['WES', 'LYO', 'MAR']
-                start.occupiedCoast = None
+                self.provinces[start].occupiedCoast = None
             elif start in ['STP', 'BUL']:
-                assert end == start.occupiedCoast or end in start.occupiedCoast.neighbors
-                start.occupiedCoast = None
+                assert end == self.provinces[start].occupiedCoast \
+                        or end in self.provinces[start].occupiedCoast.neighbors
+                self.provinces[start].occupiedCoast = None
 
         self.provinces[end].unit = self.provinces[start].unit
         self.provinces[start].unit = None
@@ -325,6 +327,9 @@ class Map:
 
     def isOcean(self, province):
         return not self.isLand(self.province)
+
+    def isValidMove(self, start, end):
+
 
 # Testing - too lazy to remove
 m = Map()

@@ -64,18 +64,16 @@ class diplomacyBot():
     def start(self):
         try:
             info = self.sc.api_call("channels.info",channel=self.current)
-            if(info['channel']['id'] == self.diplomacy):
-                pass
-            else:
+            if(info['channel']['id'] != self.diplomacy):
                 self.send("This isn't the diplomacy channel")
                 return
         except KeyError:
             self.send("This isn't the diplomacy channel")
             return
         if(self.starting == False):
-            self.send("@channel A new game of Diplomacy is starting...")
-            self.send("Message \"@bender add me\" if you want to join the game")
-            self.send("Message \"@bender Start\" when all members have registered and you are ready to play")
+            self.send("@channel A new game of Diplomacy is starting...\n"
+                      "Message \"@bender add me\" if you want to join the game\n"
+                      "Message \"@bender Start\" when all members have registered and you are ready to play")
             self.starting = True
             self.map = Map()
             self.addPlayer()
@@ -325,8 +323,6 @@ class diplomacyBot():
         if c.cmd == 'S':
             return not self.active(p,q)
 
-
-
     def retreat(self):
         pass
 
@@ -344,6 +340,7 @@ class diplomacyBot():
             self.supplyDepots[ctry] = supplyDepots
             self.win()
         self.winter()
+        
     def resolveWinterOrders(self):
         for i in self.players:
             ctry = self.players[i][1]
