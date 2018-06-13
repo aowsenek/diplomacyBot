@@ -127,7 +127,7 @@ class diplomacyBot():
         self.supplyDepots = {1:4,2:3,3:3,4:3,5:3,6:3,7:3}
         self.ready = {}
 
-        assign = random.sample(range(1,2),len(self.players))
+        assign = random.sample(range(1,8),len(self.players))
         it = 0
         for i in self.players:
             self.players[i][1] = assign[it]
@@ -195,11 +195,11 @@ class diplomacyBot():
 
 #============================== Game movement interface
     def standardizeOrder(self, cmd):
-            typ = cmd[0][0]
-            loc1 = cmd[1]
-            act1 = cmd[2][0]
-            loc2 = act2 = loc3 = None
+            typ = loc1 = act1 = loc2 = act2 = loc3 = None
             try:
+                typ = cmd[0][0]
+                loc1 = cmd[1]
+                act1 = cmd[2][0]
                 loc2 = cmd[3]
                 act2 = cmd[4][0]
                 loc3 = cmd[5]
@@ -381,7 +381,7 @@ class diplomacyBot():
                     if(i[1] == loc):
                         newLoc = i[3]
                 if(newLoc):
-                    if(self.map.isValidRetreat(u.type, loc, newLoc):
+                    if(self.map.isValidRetreat(u.type, loc, newLoc)):
                         self.map.placeUnit(u.type, u.controllerID, newLoc)
             except AssertionError: pass
 
