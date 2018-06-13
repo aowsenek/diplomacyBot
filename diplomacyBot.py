@@ -1,6 +1,7 @@
 import re
 import time
 import random
+import threading
 from diplomacyMap import Map
 from slackclient import SlackClient
 from slackbot_settings import API_TOKEN
@@ -482,7 +483,9 @@ class diplomacyBot():
             while True:
                 command, channel, user = self.parse_bot_commands(self.sc.rtm_read())
                 if command:
-                     self.handle_command(command, channel, user)
+                    t = threading.Thread(target=self.handle_command, args=(command, channel, user))
+                    t.start()
+                    # self.handle_command(command, channel, user)
                 time.sleep(RTM_READ_DELAY)
         else:
             print("Connection failed. Exception traceback printed above.")
