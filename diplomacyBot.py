@@ -9,18 +9,8 @@ from slackclient import SlackClient
 from slackbot_settings import API_TOKEN, DIPLOMACY_CHANNEL
 
 RTM_READ_DELAY = 0 # 1 second delay between reading from RTM
-EXAMPLE_COMMAND = "do"
 MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
 
-class Command:
-    def __init__(self):
-        self.cmd = 'H'
-        self.target = None
-        self.atk = []
-        self.sup = []
-
-    def __repr__(self):
-        return '%s (%s vs %s)' % (self.cmd, self.atk, self.sup)
 
 class diplomacyBot():
     def __init__(self):
@@ -35,6 +25,17 @@ class diplomacyBot():
         self.date = 1901
         self.resolving = False
         self.players={}
+        self.countries = {1: "Russia",
+                          2: "England",
+                          3: "Germany",
+                          4: "France",
+                          5: "Austria",
+                          6: "Italy",
+                          7: "Turkey"}
+
+        self.orders = { 1:[],2:[],3:[],4:[],5:[],6:[],7:[]}
+        self.ready = {}
+
         self.run()
 
 #============================= Messaging
@@ -117,17 +118,6 @@ class diplomacyBot():
             self.send("You cannot be in the same game twice")
 
     def randomizeCountries(self):
-        self.countries = {1: "Russia",
-                          2: "England",
-                          3: "Germany",
-                          4: "France",
-                          5: "Austria",
-                          6: "Italy",
-                          7: "Turkey"}
-
-        self.orders = { 1:[],2:[],3:[],4:[],5:[],6:[],7:[]}
-        self.ready = {}
-
         assign = random.sample(range(1,8),len(self.players))
         it = 0
         for i in self.players:
@@ -181,34 +171,35 @@ class diplomacyBot():
                 self.send("Game Over! The winner is "+self.countries[ctry])
                 return
     def save(self):
-        if(self.resolving == True):
-            self.im(self.current, "Please resolve the current season before saving.")
-            return
+        #if(self.resolving == True):
+        #    self.im(self.current, "Please resolve the current season before saving.")
+        #    return
         try:
             filename = self.command[1]
-            gameState = (self.map, self.players, self.orders, self.season, self.year)
+            gameState = (self.map, self.players, self.orders, self.resolving, self.season, self.date)
             pickle.dump(gameState, open(filename, "wb"))
             self.send("Game state saved as: "+str(filename))
         except IndexError:
             self.im(self.current,"You need to specify a filename to save as.")
-        except:
-            self.im(self.current,"Game state failed to save.")
+        #except:
+        #    self.im(self.current,"Game state failed to save.")
 
     def load(self):
         try:
             filename = self.command[1]
             gameState = pickle.load(open(filename,"rb"))
-            self.map, self.players, self.orders, self.season, self.year = gameState
+            self.map, self.players, self.orders, self.resolving, self.season, self.date = gameState
             self.starting = False
             self.running = True
-            self.resolving = False
             self.send("Loading Game "+str(filename)+"...")
-            self.current = self.diplomacy
-            self.adjudicate()
+            if(self.season == "WINTER"):
+                self.winter()
+            else:
+                self.springFall()
         except IndexError:
             self.im(self.current,"You need to specify a filename to load or specify a filename a game was saved as.")
-        except:
-            self.im(self.current,"Game state failed to load.")
+        #except:
+        #    self.im(self.current,"Game state failed to load.")
 
 #============================== Game movement interface
     def standardizeOrder(self, cmd):
@@ -253,14 +244,14 @@ class diplomacyBot():
             self.send("Send in your movement orders at this time.")
         else:
             self.show(opt = "map")
-            self.send("The "+self.season.lower().capitalize()+" "+str(self.date)+" season is starting")
+            self.send("The "+self.season.lower().capitalize()+" "+str(self.date)+" season is ending")
             self.send("Send in your retreat orders at this time.")
             self.send("Sending an invalid order will cause the unit to be destroyed.")
             for i,loc in self.retreats:
                self.im(i.controllerID,"Your unit at "+loc+" needs to retreat")
 
     def winter(self):
-        unitsToBuild = self.build()
+        unitsToBuild = build()
         self.win() #Check if win conditions are met
         self.send("The "+self.season.lower().capitalize()+" "+str(self.date)+" season is starting")
         self.send("Send in your unit creation/destruction orders at this time.")
@@ -274,7 +265,7 @@ class diplomacyBot():
             else:
                 self.im(i,"You need to destroy "+str(-1*unitsToBuild[ctry])+" units.")
                 self.im(i,"Type [unit type] [location] to order unit destruction.")
-        return unitsToBuild
+        self.unitsToBuild = unitsToBuild
 
 #=============================== Game Logic
 
@@ -312,7 +303,7 @@ class diplomacyBot():
         #        self.springFall()
         if(self.season == "WINTER"):
             if(self.resolving == False):
-                self.unitsToBuild = self.winter()
+                self.winter()
                 self.resolving = True
             else:
                 resolveWinterOrders(players,self.map,self.orders,self.unitsToBuild)

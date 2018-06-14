@@ -1,4 +1,14 @@
 
+class Command:
+    def __init__(self):
+        self.cmd = 'H'
+        self.target = None
+        self.atk = []
+        self.sup = []
+
+    def __repr__(self):
+        return '%s (%s vs %s)' % (self.cmd, self.atk, self.sup)
+
 countries = {1: "Russia",
              2: "England",
              3: "Germany",
@@ -6,16 +16,17 @@ countries = {1: "Russia",
              5: "Austria",
              6: "Italy",
              7: "Turkey"}
+
 def move(map_,orders_):
     q = { n: Command() for n, p in map_.provinces.items() if p.unit != None }
     orders = []
     for i in countries:
-        ordrs = ordrs + orders_[i]
+        orders = orders + orders_[i]
     for command in orders:
      #   print(command)
         if command[2] == '-':
             _, f,a,t = command
-            q[f].cmd = '-'
+            q[a].cmd = '-'
             q[f].target = t
             if t in q:
                 q[t].atk.append(f)
