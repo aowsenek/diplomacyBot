@@ -4,9 +4,9 @@ import random
 import pickle
 import threading
 from diplomacyMap import Map
-from diplomacyLogic import Logic
+from diplomacyLogic import *
 from slackclient import SlackClient
-from slackbot_settings import API_TOKEN
+from slackbot_settings import API_TOKEN, DIPLOMACY_CHANNEL
 
 RTM_READ_DELAY = 0 # 1 second delay between reading from RTM
 EXAMPLE_COMMAND = "do"
@@ -24,7 +24,7 @@ class Command:
 
 class diplomacyBot():
     def __init__(self):
-        self.diplomacy = "CB227T8EQ"
+        self.diplomacy = DIPLOMACY_CHANNEL
 
         self.sc = SlackClient(API_TOKEN)
         self.bot_id = None
@@ -181,6 +181,9 @@ class diplomacyBot():
                 self.send("Game Over! The winner is "+self.countries[ctry])
                 return
     def save(self):
+        if(self.resolving == True):
+            self.im(self.current, "Please resolve the current season before saving.")
+            return
         try:
             filename = self.command[1]
             gameState = (self.map, self.players, self.orders, self.season, self.year)
@@ -198,11 +201,10 @@ class diplomacyBot():
             self.map, self.players, self.orders, self.season, self.year = gameState
             self.starting = False
             self.running = True
+            self.resolving = False
             self.send("Loading Game "+str(filename)+"...")
-            if(self.season != "WINTER"):
-                self.springFall()
-            else:
-                self.winter()
+            self.current = self.diplomacy
+            self.adjudicate()
         except IndexError:
             self.im(self.current,"You need to specify a filename to load or specify a filename a game was saved as.")
         except:
@@ -258,19 +260,21 @@ class diplomacyBot():
                self.im(i.controllerID,"Your unit at "+loc+" needs to retreat")
 
     def winter(self):
-        self.build()
+        unitsToBuild = self.build()
+        self.win() #Check if win conditions are met
         self.send("The "+self.season.lower().capitalize()+" "+str(self.date)+" season is starting")
         self.send("Send in your unit creation/destruction orders at this time.")
         for i in self.players:
             ctry = self.players[i][1]
-            if(self.unitsToBuild[ctry] > 0):
-                self.im(i,"You need to build "+str(self.unitsToBuild[ctry])+" units. You can only build them on your home supply depots.")
+            if(unitsToBuild[ctry] > 0):
+                self.im(i,"You need to build "+str(unitsToBuild[ctry])+" units. You can only build them on your home supply depots.")
                 self.im(i,"Type [unit type] [spawn location] to order unit creation. The spawn location must be unoccupied.")
-            elif(self.unitsToBuild[ctry] == 0):
+            elif(unitsToBuild[ctry] == 0):
                 self.im(i,"You have no units to build or destroy.")
             else:
-                self.im(i,"You need to destroy "+str(-1*self.unitsToBuild[ctry])+" units.")
+                self.im(i,"You need to destroy "+str(-1*unitsToBuild[ctry])+" units.")
                 self.im(i,"Type [unit type] [location] to order unit destruction.")
+        return unitsToBuild
 
 #=============================== Game Logic
 
@@ -282,164 +286,40 @@ class diplomacyBot():
         self.ready = dict.fromkeys(self.ready,False)
         if(self.season == "SPRING"):
             if(self.resolving == False):
-                self.move()
+                self.retreats = move(self.map,self.orders)
                 self.resolving = True
                 if(self.retreats == []):
                     self.resolving = False
                     self.season = "FALL"
                 self.springFall() #tells players to send in retreat orders if resolving, else announces next season
             else:
-                self.retreat() #handles retreat orders
+                retreat(self.orders,self.retreats) #handles retreat orders
                 self.season = "FALL"
                 self.resolving = False
                 self.springFall()
         elif(self.season == "FALL"):
             if(self.resolving == False):
-                self.move()
+                self.retreats = move(self.map,self.orders)
                 self.resolving = True
                 if(self.retreats == []):
                     self.resolving = False
                     self.season = "WINTER"
         #        self.springFall()
             else:
-                self.retreat()
+                retreat(self.orders,self.retreats) #handles retreat orders
                 self.season = "WINTER"
                 self.resolving = False
         #        self.springFall()
         if(self.season == "WINTER"):
             if(self.resolving == False):
-                self.winter()
+                self.unitsToBuild = self.winter()
                 self.resolving = True
             else:
-                self.resolveWinterOrders()
+                resolveWinterOrders(players,self.map,self.orders,self.unitsToBuild)
                 self.season = "SPRING"
                 self.date += 1
                 self.resolving = False
-
-    def move(self):
-        q = { n: Command() for n, p in self.map.provinces.items() if p.unit != None }
-        orders = []
-        for i in self.countries:
-            orders = orders + self.orders[i]
-        for command in orders:
-         #   print(command)
-            if command[2] == '-':
-                _, f,a,t = command
-                q[f].cmd = '-'
-                q[f].target = t
-                if t in q:
-                    q[t].atk.append(f)
-            elif command[2] == 'S':
-                try:
-                    _, lc1, s, f,a,t = command
-                except ValueError:
-                    _, lc1, s, f,a = command
-
-                q[s].cmd = 'S'
-                q[t].atk.append(s)
-                q[f].sup.append(s)
-            elif command[2] == 'H':
-                pass
-        self.success = []
-        self.fails = []
-        self.retreats = []
-        for p in q.keys():
-            if self.succeeds(p,q):
-                self.success.append(p)
-                if(q[p].cmd == '-'):
-                    try:
-                        self.map.moveUnit(p,q[p].target)
-                    except AssertionError:
-                        self.retreats.append((self.map.getUnitByProvince(q[p].target),q[p].target)) #unit,prev location
-                        self.map.deleteUnit(q[p].target)
-                        self.map.moveUnit(p,q[p].target)
-                else:
-                    pass
-            else:
-                self.fails.append(p)
-        for i in self.fails:
-            unit = self.map.getUnitByProvince(i)
-
-        #print(self.success)
-        #print(self.fails)
         self.orders = {1:[],2:[],3:[],4:[],5:[],6:[],7:[]}
-
-    def active(self,p,q):
-        if p not in q:
-            return False
-        c = q[p]
-        if c.cmd == 'S':
-            if any([x for x in c.atk if self.active(x,q)]):
-                return False
-        return True
-
-    def support(self,p,q):
-        return sum([1 for x in q[p].sup if self.active(x,q)])
-
-    def succeeds(self,p,q):
-        c = q[p]
-        if c.cmd == 'H':
-            if not c.atk:
-                return True
-            return max([self.support(x,q) for x in c.atk]) <= self.support(p,q)
-        if c.cmd == '-':
-            if not self.active(c.target,q) or (q[c.target].cmd == '-' and self.succeeds(c.target,q)):
-                return True
-            return self.support(p,q) > self.support(c.target,q)
-        if c.cmd == 'S':
-            return not self.active(p,q)
-
-    def retreat(self):
-        for u,loc in self.retreats:
-            try:
-                newLoc = None
-                for i in self.orders.values():
-                    if(i[1] == loc):
-                        newLoc = i[3]
-                if(newLoc):
-                    if(self.map.isValidRetreat(u.type, loc, newLoc)):
-                        self.map.placeUnit(u.type, u.controllerID, newLoc)
-            except AssertionError: pass
-
-    def build(self):
-        self.unitsToBuild = {1:0,2:0,3:0,4:0,5:0,6:0,7:0}
-        for i in self.players:
-            ctry = self.players[i][1]
-            units = self.map.getUnitsByCountry(ctry)
-            for loc,u in units:
-                self.map.changeController(loc,ctry)
-            supplyDepots =  len(self.map.getOwnedSupplyDepots(ctry))
-            self.unitsToBuild[ctry] =  supplyDepots - len(units)
-            self.win()
-
-    def resolveWinterOrders(self):
-        for i in self.players:
-            ctry = self.players[i][1]
-            if(self.unitsToBuild[ctry] > 0): #Build Units
-                unitsBuilt = 0
-                for i in self.orders[ctry]:
-                    if(unitsBuilt < self.unitsToBuild[ctry]):
-                        self.map.placeUnit(i[0],ctry,i[1])
-                        unitsBuilt += 1
-            elif(self.unitsToBuild[ctry] < 0): #Delete Units
-                if(self.orders[ctry] >= self.unitsToBuild[ctry]):
-                    unitsRemoved = 0
-                    for i in self.orders[ctry]:
-                        if(unitsRemoved < self.unitsToBuild[ctry]):
-                            self.map.deleteUnit(i[1])
-                            unitsRemoved += 1
-                else:
-                    unitsRemoved = 0
-                    units = self.map.getUnitsByCountry(ctry)
-                    for i in self.orders[ctry]:
-                        if(unitsRemoved < self.unitsToBuild[ctry]):
-                            self.map.deleteUnit(i[1])
-                            unitsRemoved += 1
-                    for i in units:
-                        if(unitsRemoved < self.unitsToBuild[ctry]):
-                            self.map.deleteUnit(i[1])
-                            unitsRemoved += 1
-            else: pass #No units to remove or add
 
 #=============================== Event Loop and Bones
     def handle_command(self,cmd, channel, sender):
@@ -466,7 +346,7 @@ class diplomacyBot():
         for i in self.viableCommands:
             if cmd.upper().startswith(i):
                 iscommand = True
-                if((self.starting == True and ((i == "START") or (i == "ADD ME"))) or self.running == True or i == "START" or i == "HELP"):
+                if((self.starting == True and (i in["START","ADD ME"])) or self.running == True or (i in ["START","HELP","LOAD"]) ):
                     #print("command detected: ",i)
                     self.viableCommands[i]()
                 else:
