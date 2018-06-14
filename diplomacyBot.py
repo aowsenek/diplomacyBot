@@ -1,12 +1,14 @@
 import re
 import time
 import random
+import pickle
 import threading
 from diplomacyMap import Map
+from diplomacyLogic import Logic
 from slackclient import SlackClient
 from slackbot_settings import API_TOKEN
 
-RTM_READ_DELAY = 1 # 1 second delay between reading from RTM
+RTM_READ_DELAY = 0 # 1 second delay between reading from RTM
 EXAMPLE_COMMAND = "do"
 MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
 
@@ -124,7 +126,6 @@ class diplomacyBot():
                           7: "Turkey"}
 
         self.orders = { 1:[],2:[],3:[],4:[],5:[],6:[],7:[]}
-        self.supplyDepots = {1:4,2:3,3:3,4:3,5:3,6:3,7:3}
         self.ready = {}
 
         assign = random.sample(range(1,8),len(self.players))
@@ -168,30 +169,44 @@ class diplomacyBot():
                             "Show Map: Shows map with units."
                             "Show Labels: Shows map with territory labels and no units.\n"
                             "Save <filename>: Saves game state as <filename>.\n"
-                            "Load <filename>: Loads game state from <filename>."
+                            "Load <filename>: Loads game state from <filename>.\n"
                             "Verify: Repeats back orders a player input for manual verification.")
 
     def win(self): #ties not implemented yet
         for i in self.players:
             ctry = self.players[i][1]
-            if(self.supplyDepots[ctry] >= 18):
+            supplyDepots =  len(self.map.getOwnedSupplyDepots(ctry))
+            if(supplyDepots >= 18):
                 self.running = False
                 self.send("Game Over! The winner is "+self.countries[ctry])
                 return
     def save(self):
         try:
             filename = self.command[1]
-            self.map.saveState(filename)
-        except:
+            gameState = (self.map, self.players, self.orders, self.season, self.year)
+            pickle.dump(gameState, open(filename, "wb"))
+            self.send("Game state saved as: "+str(filename))
+        except IndexError:
             self.im(self.current,"You need to specify a filename to save as.")
+        except:
+            self.im(self.current,"Game state failed to save.")
 
     def load(self):
         try:
             filename = self.command[1]
-            self.map.loadState(filename)
-        except:
+            gameState = pickle.load(open(filename,"rb"))
+            self.map, self.players, self.orders, self.season, self.year = gameState
+            self.starting = False
+            self.running = True
+            self.send("Loading Game "+str(filename)+"...")
+            if(self.season != "WINTER"):
+                self.springFall()
+            else:
+                self.winter()
+        except IndexError:
             self.im(self.current,"You need to specify a filename to load or specify a filename a game was saved as.")
-
+        except:
+            self.im(self.current,"Game state failed to load.")
 
 #============================== Game movement interface
     def standardizeOrder(self, cmd):
@@ -243,6 +258,7 @@ class diplomacyBot():
                self.im(i.controllerID,"Your unit at "+loc+" needs to retreat")
 
     def winter(self):
+        self.build()
         self.send("The "+self.season.lower().capitalize()+" "+str(self.date)+" season is starting")
         self.send("Send in your unit creation/destruction orders at this time.")
         for i in self.players:
@@ -292,7 +308,7 @@ class diplomacyBot():
         #        self.springFall()
         if(self.season == "WINTER"):
             if(self.resolving == False):
-                self.build()
+                self.winter()
                 self.resolving = True
             else:
                 self.resolveWinterOrders()
@@ -316,7 +332,7 @@ class diplomacyBot():
             elif command[2] == 'S':
                 try:
                     _, lc1, s, f,a,t = command
-                except IndexError:
+                except ValueError:
                     _, lc1, s, f,a = command
 
                 q[s].cmd = 'S'
@@ -394,9 +410,7 @@ class diplomacyBot():
                 self.map.changeController(loc,ctry)
             supplyDepots =  len(self.map.getOwnedSupplyDepots(ctry))
             self.unitsToBuild[ctry] =  supplyDepots - len(units)
-            self.supplyDepots[ctry] = supplyDepots
             self.win()
-        self.winter()
 
     def resolveWinterOrders(self):
         for i in self.players:
@@ -483,9 +497,9 @@ class diplomacyBot():
             while True:
                 command, channel, user = self.parse_bot_commands(self.sc.rtm_read())
                 if command:
-                    t = threading.Thread(target=self.handle_command, args=(command, channel, user))
-                    t.start()
-                    # self.handle_command(command, channel, user)
+                #    t = threading.Thread(target=self.handle_command, args=(command, channel, user))
+                #    t.start()
+                     self.handle_command(command, channel, user)
                 time.sleep(RTM_READ_DELAY)
         else:
             print("Connection failed. Exception traceback printed above.")
