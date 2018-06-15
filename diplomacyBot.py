@@ -130,7 +130,6 @@ class diplomacyBot():
     def show(self, opt = None):#needs to implement map generation with the map library
         if(opt): self.command = opt
         if(self.command[1][0] == "M" or self.command[1][0] == "U"):
-            self.map.getMap()
             self.map.saveMap("current_units.png")
             self.showMap(self.current, "current_units.png")
         elif(self.command[1][0] == "L"):
@@ -240,6 +239,7 @@ class diplomacyBot():
 
     def springFall(self):
         if(self.resolving == False):
+            self.show(opt = "map")
             self.send("The "+self.season.lower().capitalize()+" "+str(self.date)+" season is starting")
             self.send("Send in your movement orders at this time.")
         else:
@@ -251,8 +251,9 @@ class diplomacyBot():
                self.im(i.controllerID,"Your unit at "+loc+" needs to retreat")
 
     def winter(self):
-        unitsToBuild = build()
+        unitsToBuild = build(self.players, self.map)
         self.win() #Check if win conditions are met
+        self.show(opt = "map")
         self.send("The "+self.season.lower().capitalize()+" "+str(self.date)+" season is starting")
         self.send("Send in your unit creation/destruction orders at this time.")
         for i in self.players:
@@ -306,7 +307,7 @@ class diplomacyBot():
                 self.winter()
                 self.resolving = True
             else:
-                resolveWinterOrders(players,self.map,self.orders,self.unitsToBuild)
+                resolveWinterOrders(self.players,self.map,self.orders,self.unitsToBuild)
                 self.season = "SPRING"
                 self.date += 1
                 self.resolving = False

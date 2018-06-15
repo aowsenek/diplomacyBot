@@ -18,43 +18,44 @@ countries = {1: "Russia",
              7: "Turkey"}
 
 def move(map_,orders_):
-    q = { n: Command() for n, p in map_.provinces.items() if p.unit != None }
-    orders = []
+    orders = { n: Command() for n, p in map_.provinces.items() if p.unit != None }
+    ordrs = []
     for i in countries:
-        orders = orders + orders_[i]
-    for command in orders:
-     #   print(command)
+        ordrs = ordrs + orders_[i]
+    for command in ordrs:
         if command[2] == '-':
-            _, f,a,t = command
-            q[a].cmd = '-'
-            q[f].target = t
-            if t in q:
-                q[t].atk.append(f)
+            _, attacker, _, target = command
+            try:
+                orders[attacker].cmd = '-'
+                orders[attacker].target = target
+                if target in orders:
+                    orders[target].atk.append(attacker)
+            except KeyError: continue
         elif command[2] == 'S':
             try:
-                _, lc1, s, f,a,t = command
+                _, _, supporter, attacker, _, target = command
             except ValueError:
-                _, lc1, s, f,a = command
-
-            q[s].cmd = 'S'
-            q[t].atk.append(s)
-            q[f].sup.append(s)
+                _, _, supporter, attacker, _ = command
+            try:
+                orders[supporter].cmd = 'S'
+                orders[target].atk.append(supporter)
+                orders[attacker].sup.append(supporter)
+            except KeyError: continue
         elif command[2] == 'H':
             pass
-
     success = []
     fails = []
     retreats = []
-    for p in q.keys():
-        if succeeds(p,q):
+    for p in orders.keys():
+        if succeeds(p,orders):
             success.append(p)
-            if(q[p].cmd == '-'):
+            if(orders[p].cmd == '-'):
                 try:
-                    map_.moveUnit(p,q[p].target)
+                    map_.moveUnit(p,orders[p].target)
                 except AssertionError:
-                    retreats.append((map_.getUnitByProvince(q[p].target),q[p].target)) #unit,prev location
-                    map_.deleteUnit(q[p].target)
-                    map_.moveUnit(p,q[p].target)
+                    retreats.append((map_.getUnitByProvince(orders[p].target),orders[p].target)) #unit,prev location
+                    map_.deleteUnit(orders[p].target)
+                    map_.moveUnit(p,orders[p].target)
             else:
                 pass
         else:
