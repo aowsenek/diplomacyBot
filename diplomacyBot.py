@@ -275,42 +275,30 @@ class diplomacyBot():
         if(self.current != self.diplomacy):
             self.send("Adjudication must happen in the diplomacy channel.")
             return
-        self.ready = dict.fromkeys(self.ready,False)
-        if(self.season == "SPRING"):
-            if(self.resolving == False):
-                self.retreats = move(self.map,self.orders)
-                self.resolving = True
-                if(self.retreats == []):
-                    self.resolving = False
-                    self.season = "FALL"
-                self.springFall() #tells players to send in retreat orders if resolving, else announces next season
-            else:
+        if(self.season in ["SPRING","FALL"]):
+            if(self.resolving == True):
                 retreat(self.orders,self.retreats) #handles retreat orders
-                self.season = "FALL"
                 self.resolving = False
+            else:
+                self.retreats = move(self.map,self.orders)
+                if(self.retreats != []):
+                    self.resolving = True
+                    self.springFall()
+                    self.ready = dict.fromkeys(self.ready,False)
+                    self.orders = {1:[],2:[],3:[],4:[],5:[],6:[],7:[]}
+                    return
+
+            if(self.season == "SPRING"):
+                self.season == "FALL"
                 self.springFall()
-        elif(self.season == "FALL"):
-            if(self.resolving == False):
-                self.retreats = move(self.map,self.orders)
-                self.resolving = True
-                if(self.retreats == []):
-                    self.resolving = False
-                    self.season = "WINTER"
-        #        self.springFall()
             else:
-                retreat(self.orders,self.retreats) #handles retreat orders
-                self.season = "WINTER"
-                self.resolving = False
-        #        self.springFall()
-        if(self.season == "WINTER"):
-            if(self.resolving == False):
+                self.season == "WINTER"
                 self.winter()
-                self.resolving = True
-            else:
-                resolveWinterOrders(self.players,self.map,self.orders,self.unitsToBuild)
-                self.season = "SPRING"
-                self.date += 1
-                self.resolving = False
+        elif(self.season == "WINTER"):
+            resolveWinterOrders(self.players,self.map,self.orders,self.unitsToBuild)
+            self.season = "SPRING"
+            self.date += 1
+        self.ready = dict.fromkeys(self.ready,False)
         self.orders = {1:[],2:[],3:[],4:[],5:[],6:[],7:[]}
 
 #=============================== Event Loop and Bones
