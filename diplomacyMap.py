@@ -32,8 +32,8 @@ class Country:
         self.name = name
         self.countryColor = countryColor
 
-        baseArmy = np.array(Image.open('army.png'))
-        baseNavy = np.array(Image.open('fleet.png'))
+        baseArmy = np.array(Image.open('./images/army.png'))
+        baseNavy = np.array(Image.open('./images/fleet.png'))
         for pix in [baseArmy, baseNavy]:
             pix[pix==1] = unitColorID
         self.armyIcon = Image.fromarray(baseArmy)
@@ -150,7 +150,7 @@ class Map:
     }
 
     def __init__(self):
-        self._baseMap = Image.open('map.png')
+        self._baseMap = Image.open('./images/map.png')
         self._palette = np.zeros(256 * 3, dtype=np.uint8)
         draw = ImageDraw.Draw(self._baseMap)
 

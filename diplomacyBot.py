@@ -6,7 +6,7 @@ import threading
 from diplomacyMap import Map
 from diplomacyLogic import *
 from slackclient import SlackClient
-from slackbot_settings import API_TOKEN, DIPLOMACY_CHANNEL
+from config import API_TOKEN, DIPLOMACY_CHANNEL
 
 RTM_READ_DELAY = 0 # 1 second delay between reading from RTM
 MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
@@ -133,7 +133,7 @@ class diplomacyBot():
             self.map.saveMap("current_units.png")
             self.showMap(self.current, "current_units.png")
         elif(self.command[1][0] == "L"):
-            self.showMap(self.current, "labeledMap.png")
+            self.showMap(self.current, "./images/labeledMap.png")
         else:
             self.map.getMap()
             self.map.saveMap("current_units.png")
@@ -176,7 +176,7 @@ class diplomacyBot():
         try:
             filename = self.command[1]
             gameState = (self.map, self.players, self.orders, self.resolving, self.season, self.date)
-            pickle.dump(gameState, open(filename, "wb"))
+            pickle.dump(gameState, open("./saveFiles/"+filename, "wb"))
             self.send("Game state saved as: "+str(filename))
         except IndexError:
             self.im(self.current,"You need to specify a filename to save as.")
@@ -186,7 +186,7 @@ class diplomacyBot():
     def load(self):
         try:
             filename = self.command[1]
-            gameState = pickle.load(open(filename,"rb"))
+            gameState = pickle.load(open("./saveFiles/"+filename,"rb"))
             self.map, self.players, self.orders, self.resolving, self.season, self.date = gameState
             self.starting = False
             self.running = True
