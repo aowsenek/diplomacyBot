@@ -10,6 +10,8 @@ If you want to set up this project to work on your own slack channel:
     
 3. Create a file in the diplomacybot directory named config.py.
 4. Edit the config.py file to say:
-```API_TOKEN = "your-api-token-here"
-DIPLOMACY_CHANNEL = "your-diplomacy-channel-id-here"```
-5. Save the file and run ./run.sh! Enjoy~
+```
+API_TOKEN = "your-api-token-here"
+DIPLOMACY_CHANNEL = "your-diplomacy-channel-id-here"
+```
+5. Save the file and type  `./run.sh` into your console! Enjoy~
