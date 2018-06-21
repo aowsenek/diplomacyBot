@@ -20,6 +20,17 @@ class ddata():
         self.ready = {}
         self.numBuild = {1:0,2:0,3:0,4:0,5:0,6:0,7:0}
         self.map = Map()
+    def __init__(self,season="SPRING",date=1901,resolving=False,players={1:[],2:[],3[]},orders={1:[],2:[],3:[]},retreats=[],ready={1:False,2:False,3:False},numBuild={1:0,2:0,3:0},map_=Map()):
+        self.season = season #"SPRING"
+        self.date = date #1902
+        self.resolving = resolving #False
+        self.players = players#{1:[],2:[],4:[] etc}
+        self.orders = orders#{1:[[F,HOL,-,NTH],[A,KIE,-,BER]],2:[] etc }
+        self.retreats = retreats#[(Unit,loc)]
+        self.ready = ready#{1:True,2:False#etc}
+        self.numBuild = numBuild#{1:4,2:6 etc}
+        self.map = map_ # map object
+
     def getSeason(self):
         return self.season
     def getDate(self):
