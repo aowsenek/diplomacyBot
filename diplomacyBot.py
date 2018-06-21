@@ -79,9 +79,12 @@ class diplomacyBot():
                 self.starting = False
                 self.running = False
                 return
-            playerstr = "Players are "+"".join([str(self.ddata.getNamebyCID(i))+", " for i in self.ddata.getPCountries()])
-            self.send(playerstr[:-2])
+
             self.randomizeCountries()
+            playerstr = "Players are "
+            for ctry in self.ddata.getPCountries():
+                playerstr += self.ddata.getNamebyCID(ctry)+", "
+            self.send(playerstr[:-2])
             self.springFall()
 
             for ctry in self.ddata.getPCountries():

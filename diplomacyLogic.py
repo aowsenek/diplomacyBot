@@ -145,18 +145,20 @@ class Game():
                     ddata.setResolving(True)
                     #self.springFall()
                     ddata.reset()
-                    return
+                    return True
 
             if(ddata.getSeason() == "SPRING"):
                 ddata.changeSeason()
-                #self.springFall()
+                returnv = True
             else:
                 ddata.changeSeason()
-                #self.winter()
+                returnv = False
         elif(ddata.season == "WINTER"):
             self.resolveWinterOrders(ddata)
             ddata.changeSeason()
             ddata.incrementDate()
+            returnv = None
         ddata.reset()
+        return returnv
 
 
