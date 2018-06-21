@@ -104,26 +104,24 @@ class diplomacyBot():
         assign = random.sample(range(1,8),len(self.players))
         it = 0
         for i in self.players:
-            self.ddata.players[i][1] = assign[it]
-            self.ready[assign[it]] = False
+            self.ddata.addPlayer(assign[it],i)
+            self.ddata.addReady(assign[it],False)
             it += 1
-        #print(self.ddata.players)
 
 #============================== Needs Work
     def show(self, opt = None):#needs to implement map generation with the map library
         if(opt): self.command = opt
         if(self.command[1][0] == "M" or self.command[1][0] == "U"):
-            self.map.saveMap("current_units.png")
+            self.ddata.map().saveMap("current_units.png")
             self.showMap(self.current, "current_units.png")
         elif(self.command[1][0] == "L"):
             self.showMap(self.current, "./images/labeledMap.png")
         else:
-            self.map.getMap()
-            self.map.saveMap("current_units.png")
+            self.ddata.map().saveMap("current_units.png")
             self.showMap(self.current, "current_units.png")
 
     def playerReady(self):
-        ctry = self.ddata.players[self.sender][1]
+        ctry = self.ddata.getCountrybyPID(self.sender)
         if(self.command[0][0] == "N"):
             self.ddata.addReady(ctry,False)
         else:
@@ -145,12 +143,11 @@ class diplomacyBot():
                             "Verify: Repeats back orders a player input for manual verification.")
 
     def win(self): #ties not implemented yet
-        for i in self.ddata.players:
-            ctry = self.ddata.players[i][1]
+        for ctry in self.ddata.getPCountries:
             supplyDepots =  len(self.map.getOwnedSupplyDepots(ctry))
             if(supplyDepots >= 18):
                 self.running = False
-                self.send("Game Over! The winner is "+self.ddata.countries[ctry])
+                self.send("Game Over! The winner is "+self.ddata.countries(ctry))
                 return
     def save(self):
         #if(self.ddata.resolving == True):
@@ -158,8 +155,7 @@ class diplomacyBot():
         #    return
         try:
             filename = self.command[1]
-            gameState = (self.map, self.ddata.players, self.ddata.orders, self.ddata.resolving, self.ddata.season, self.ddata.date)
-            pickle.dump(gameState, open("./saveFiles/"+filename, "wb"))
+            pickle.dump(self.ddata, open("./saveFiles/"+filename, "wb"))
             self.send("Game state saved as: "+str(filename))
         except IndexError:
             self.im(self.current,"You need to specify a filename to save as.")
@@ -169,12 +165,11 @@ class diplomacyBot():
     def load(self):
         try:
             filename = self.command[1]
-            gameState = pickle.load(open("./saveFiles/"+filename,"rb"))
-            self.map, self.ddata.players, self.ddata.orders, self.ddata.resolving, self.ddata.season, self.ddata.date = gameState
+            self.ddata = pickle.load(open("./saveFiles/"+filename,"rb"))
             self.starting = False
             self.running = True
             self.send("Loading Game "+str(filename)+"...")
-            if(self.ddata.season == "WINTER"):
+            if(self.ddata.getSeason() == "WINTER"):
                 self.winter()
             else:
                 self.springFall()
@@ -201,50 +196,49 @@ class diplomacyBot():
             return list(filter(None,[typ,loc1,act1,loc2,act2,loc3]))
 
     def ordered(self):
-        ctry = self.ddata.players[self.sender][1]
+        ctry = self.ddata.getCountrybyPID(self.sender)
         self.command = self.standardizeOrder(self.command)
         self.ddata.addOrder(ctry,self.command[:])
         #print(self.ddata.orders[ctry])
         self.send("Added standardized order: "+" ".join(self.command))
 
     def verify(self):
-        ctry = self.ddata.players[self.sender][1]
+        ctry = self.ddata.getCountrybyPID(self.sender)
         ordrs = "Your entered orders are:\n "
-        for i in self.ddata.orders[ctry]:
+        for i in self.ddata.getOrdersbyCID(ctry):
             ordrs += " ".join(i)+"\n"
         #print(ordrs)
         self.im(self.sender, ordrs[:])
 
     def springFall(self):
-        if(self.ddata.resolving == False):
+        if(self.ddata.getResolving() == False):
             self.show(opt = "map")
-            self.send("The "+self.ddata.season.lower().capitalize()+" "+str(self.ddata.date)+" season is starting")
+            self.send("The "+self.ddata.getSeason().lower().capitalize()+" "+str(self.ddata.getDate())+" season is starting")
             self.send("Send in your movement orders at this time.")
         else:
             self.show(opt = "map")
-            self.send("The "+self.ddata.season.lower().capitalize()+" "+str(self.ddata.date)+" season is ending")
+            self.send("The "+self.ddata.getSeason().lower().capitalize()+" "+str(self.ddata.getDate())+" season is ending")
             self.send("Send in your retreat orders at this time.")
             self.send("Sending an invalid order will cause the unit to be destroyed.")
             for i,loc in self.retreats:
-               self.im(i.controllerID,"Your unit at "+loc+" needs to retreat")
+               self.im(self.ddata.getPID(i),"Your unit at "+loc+" needs to retreat")
 
     def winter(self):
-        unitsToBuild = build(self.ddata.players, self.map)
+        build(self.ddata)
         self.win() #Check if win conditions are met
         self.show(opt = "map")
-        self.send("The "+self.ddata.season.lower().capitalize()+" "+str(self.ddata.date)+" season is starting")
+        self.send("The "+self.ddata.getSeason().lower().capitalize()+" "+str(self.ddata.getDate())+" season is starting")
         self.send("Send in your unit creation/destruction orders at this time.")
-        for i in self.ddata.players:
-            ctry = self.ddata.players[i][1]
+        for ctry in self.ddata.getPCountries():
+            pid = self.ddata.getPID(ctry)
             if(unitsToBuild[ctry] > 0):
-                self.im(i,"You need to build "+str(unitsToBuild[ctry])+" units. You can only build them on your home supply depots.")
-                self.im(i,"Type [unit type] [spawn location] to order unit creation. The spawn location must be unoccupied.")
-            elif(unitsToBuild[ctry] == 0):
-                self.im(i,"You have no units to build or destroy.")
+                self.im(pid,"You need to build "+str(self.ddata.getNumBuild(ctry))+" units. You can only build them on your home supply depots.")
+                self.im(pid,"Type [unit type] [spawn location] to order unit creation. The spawn location must be unoccupied.")
+            elif(self.ddata.getNumBuild(ctry) == 0):
+                self.im(pid,"You have no units to build or destroy.")
             else:
-                self.im(i,"You need to destroy "+str(-1*unitsToBuild[ctry])+" units.")
-                self.im(i,"Type [unit type] [location] to order unit destruction.")
-        self.unitsToBuild = unitsToBuild
+                self.im(pid,"You need to destroy "+str(-1*self.ddata.getNumBuild(ctry))+" units.")
+                self.im(pid,"Type [unit type] [location] to order unit destruction.")
 
 #=============================== Game Logic
 
@@ -253,31 +247,29 @@ class diplomacyBot():
         if(self.current != self.diplomacy):
             self.send("Adjudication must happen in the diplomacy channel.")
             return
-        if(self.ddata.season in ["SPRING","FALL"]):
-            if(self.ddata.resolving == True):
-                retreat(self.ddata.orders,self.retreats) #handles retreat orders
-                self.ddata.resolving = False
+        if(self.ddata.getSeason() in ["SPRING","FALL"]):
+            if(self.ddata.getResolving() == True):
+                retreat() #handles retreat orders
+                self.ddata.setResolving(False)
             else:
-                self.retreats = move(self.map,self.ddata.orders)
-                if(self.retreats != []):
-                    self.ddata.resolving = True
+                move()
+                if(self.ddata.getRetreats() != []):
+                    self.ddata.setResolving(True)
                     self.springFall()
-                    self.ready = dict.fromkeys(self.ready,False)
-                    self.ddata.orders = {1:[],2:[],3:[],4:[],5:[],6:[],7:[]}
+                    self.ddata.reset()
                     return
 
-            if(self.ddata.season == "SPRING"):
-                self.ddata.season == "FALL"
+            if(self.ddata.getSeason() == "SPRING"):
+                self.ddata.changeSeason()
                 self.springFall()
             else:
-                self.ddata.season == "WINTER"
+                self.ddata.changeSeason()
                 self.winter()
         elif(self.ddata.season == "WINTER"):
-            resolveWinterOrders(self.ddata.players,self.map,self.ddata.orders,self.unitsToBuild)
-            self.ddata.season = "SPRING"
-            self.ddata.date += 1
-        self.ready = dict.fromkeys(self.ready,False)
-        self.ddata.orders = {1:[],2:[],3:[],4:[],5:[],6:[],7:[]}
+            resolveWinterOrders()
+            self.ddata.changeSeason()
+            self.ddata.incrementDate()
+        self.ddata.reset()
 
 #=============================== Event Loop and Bones
     def handle_command(self,cmd, channel, sender):

@@ -11,11 +11,13 @@ class Command:
         return '%s (%s vs %s)' % (self.cmd, self.atk, self.sup)
 
 class Game():
-    def move():
-        orders = { n: Command() for n, p in map_.provinces.items() if p.unit != None }
+    def __init__(self,ddata):
+        pass
+    def move(self,ddata):
+        orders = { n: Command() for n, p in ddata.map().provinces.items() if p.unit != None }
         ordrs = []
-        for i in countries:
-            ordrs = ordrs + orders_[i]
+        for ctry in ddata.getPCountries():
+            ordrs = ordrs + ddata.getOrdersbyCID(ctry)
         for command in ordrs:
             if command[2] == '-':
                 _, attacker, _, target = command
@@ -45,17 +47,15 @@ class Game():
                 success.append(p)
                 if(orders[p].cmd == '-'):
                     try:
-                        map_.moveUnit(p,orders[p].target)
+                        ddata.map().moveUnit(p,orders[p].target)
                     except AssertionError:
-                        retreats.append((map_.getUnitByProvince(orders[p].target),orders[p].target)) #unit,prev location
-                        map_.deleteUnit(orders[p].target)
-                        map_.moveUnit(p,orders[p].target)
+                        ddata.addRetreat(ddata.map().getUnitByProvince(orders[p].target),orders[p].target) #unit,prev location
+                        ddata.map().deleteUnit(orders[p].target)
+                        ddata.map().moveUnit(p,orders[p].target)
                 else:
                     pass
             else:
                 fails.append(p)
-        return retreats
-
 
     def active(p,q):
         if p not in q:
@@ -82,55 +82,55 @@ class Game():
         if c.cmd == 'S':
             return not active(p,q)
 
-    def retreat():
-        for u,loc in retreats:
+    def retreat(self,ddata):
+        ordrs = []
+        for ctry in ddata.getPCountries():
+            ordrs = ordrs + ddata.getOrdersbyCID(ctry)
+        for u,loc in ddata.getRetreats():
             try:
                 newLoc = None
-                for i in orders_.values():
+                for i in ordrs:
                     if(i[1] == loc):
                         newLoc = i[3]
                 if(newLoc):
-                    if(map_.isValidRetreat(u.type, loc, newLoc)):
-                        map_.placeUnit(u.type, u.controllerID, newLoc)
+                    if(ddata.map().isValidRetreat(u.type, loc, newLoc)):
+                        ddata.map().placeUnit(u.type, u.controllerID, newLoc)
             except AssertionError: pass
 
-    def build():
-        unitsToBuild = {1:0,2:0,3:0,4:0,5:0,6:0,7:0}
-        for i in players:
-            ctry = players[i][1]
-            units = map_.getUnitsByCountry(ctry)
+    def build(self,ddata):
+        for ctry in ddata.getPCountries():
+            units = ddata.map().getUnitsByCountry(ctry)
             for loc,u in units:
-                map_.changeController(loc,ctry)
-            supplyDepots =  len(map_.getOwnedSupplyDepots(ctry))
-            unitsToBuild[ctry] =  supplyDepots - len(units)
-        return unitsToBuild
+                ddata.map().changeController(loc,ctry)
+            supplyDepots =  len(ddata.map().getOwnedSupplyDepots(ctry))
+            ddata.setNumBuild(ctry, supplyDepots - len(units))
 
-    def resolveWinterOrders():
-        for i in players:
-            ctry = players[i][1]
-            if(unitsToBuild[ctry] > 0): #Build Units
+    def resolveWinterOrders(self,ddata):
+        for ctry in ddata.getPCountries():
+
+            if(ddata.getNumBuild(ctry) > 0): #Build Units
                 unitsBuilt = 0
-                for i in orders[ctry]:
-                    if(unitsBuilt < unitsToBuild[ctry]):
-                        map_.placeUnit(i[0],ctry,i[1])
+                for i in ddata.getOrdersbyCID(ctry):
+                    if(unitsBuilt < ddata.getNumBuild(ctry)):
+                        ddata.map().placeUnit(i[0],ctry,i[1])
                         unitsBuilt += 1
-            elif(unitsToBuild[ctry] < 0): #Delete Units
-                if(orders[ctry] >= unitsToBuild[ctry]):
+            elif(ddata.getNumBuild(ctry) < 0): #Delete Units
+                if(ddata.getOrdersbyCID(ctry) >= ddata.getNumBuild(ctry)):
                     unitsRemoved = 0
-                    for i in orders[ctry]:
-                        if(unitsRemoved < unitsToBuild[ctry]):
-                            map_.deleteUnit(i[1])
+                    for i in ddata.getOrdersbyCID(ctry):
+                        if(unitsRemoved < ddata.getNumBuild(ctry)):
+                            ddata.map().deleteUnit(i[1])
                             unitsRemoved += 1
                 else:
                     unitsRemoved = 0
-                    units = map_.getUnitsByCountry(ctry)
-                    for i in orders[ctry]:
-                        if(unitsRemoved < unitsToBuild[ctry]):
-                            map_.deleteUnit(i[1])
+                    units = ddata.map().getUnitsByCountry(ctry)
+                    for i in ddata.getOrdersbyCID(ctry):
+                        if(unitsRemoved < ddata.getNumBuild(ctry)):
+                            ddata.map().deleteUnit(i[1])
                             unitsRemoved += 1
                     for i in units:
-                        if(unitsRemoved < unitsToBuild[ctry]):
-                            map_.deleteUnit(i[1])
+                        if(unitsRemoved < ddata.getNumBuild(ctry)):
+                            ddata.map().deleteUnit(i[1])
                             unitsRemoved += 1
             else: pass #No units to remove or add
 
