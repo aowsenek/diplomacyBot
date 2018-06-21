@@ -7,7 +7,7 @@ class ddata():
         self.date = 1901
         self.resolving = False
         self.players={}
-        self.countries = {1: "Russia",
+        self.ctries = {1: "Russia",
                           2: "England",
                           3: "Germany",
                           4: "France",
@@ -28,16 +28,18 @@ class ddata():
         return self.resolving
     def getPlayers(self):
         return self.players
+    def getNamebyCID(self,countryID):
+        return self.players[countryID][1]
     def getPID(self,countryID):
         return self.players[countryID][0]
     def getPCountries(self):
         return self.players.keys()
     def getCountrybyPID(self,pid):
         for c in self.getPCountries():
-            if(pid == self.players[c])
+            if(pid == self.players[c][0]):
                 return c
     def countries(self,countryID):
-        return self.countries[countryID]
+        return self.ctries[countryID]
     def getOrders(self):
         return self.orders
     def getNumBuild(self,countryID):
@@ -49,7 +51,7 @@ class ddata():
     def isReady(self):
         return all(ready == True for ready in self.ready.values())
     #==============Needs to be locked for Threading============
-    def map(self):
+    def map_(self):
         return self.map
     def changeSeason(self):
         if(self.season == "SPRING"): self.season = "FALL"
@@ -59,17 +61,20 @@ class ddata():
         self.date += 1
     def setResolving(self,state):
         self.resolving = state
-    def addPlayer(self,countryID,uid):
-        self.players[countryID] = uid
+    def addPlayer(self,countryID,uid,name):
+        self.players[countryID] = (uid,name)
     def addOrder(self,countryID,order):
+        print(countryID)
         idx = 0
-        for i in self.orders[countryID]:
-            if(i[1] == order[1]):
-                del self.orders[countryID][idx]
-            idx += 1
-        self.orders[countryID.append(order)
-    def addReady(self,countryID):
-        self.ready[countryID] = True
+        try:
+            for i in self.orders[countryID]:
+                if(i[1] == order[1]):
+                    del self.orders[countryID][idx]
+                idx += 1
+        except KeyError: pass
+        self.orders[countryID].append(order)
+    def setReady(self,countryID,state):
+        self.ready[countryID] = state
     def addRetreat(self,unit,prevLoc):
         self.retreats.append((unit,prevLoc))
     def setNumBuild(self,countryID,toBuild):

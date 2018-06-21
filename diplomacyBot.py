@@ -20,7 +20,9 @@ class diplomacyBot():
         self.current = None
         self.starting = False
         self.running = False
+        self.players = []
         self.ddata = ddata()
+        self.game = Game()
 
         self.run()
 
@@ -77,15 +79,15 @@ class diplomacyBot():
                 self.starting = False
                 self.running = False
                 return
-            playerstr = "Players are "+"".join([str(self.ddata.getPlayers()[i][1])+", " for i in self.ddata.getPCountries()])
+            playerstr = "Players are "+"".join([str(self.ddata.getNamebyCID(i))+", " for i in self.ddata.getPCountries()])
             self.send(playerstr[:-2])
             self.randomizeCountries()
             self.springFall()
 
-            for ctry in self.ddata.getPCountries:
-                pid = self.data.getPID(ctry)
+            for ctry in self.ddata.getPCountries():
+                pid = self.ddata.getPID(ctry)
                 self.im(pid,"Your country is "+str(self.ddata.countries(ctry)))
-                unitLocs = "Your units are: "+ "".join([str(j[0])+", " for j in self.ddata.map().getUnitsByCountry(ctry)])
+                unitLocs = "Your units are: "+ "".join([str(j[0])+", " for j in self.ddata.map.getUnitsByCountry(ctry)])
                 self.im(pid,unitLocs[:-2])
                 self.im(pid,"Send orders here, so they are private.\n Valid orders are in form [unit type] [location of unit] [action] [location of action or second unit] [second unit action] [location of second unit action]")
 
@@ -104,28 +106,29 @@ class diplomacyBot():
         assign = random.sample(range(1,8),len(self.players))
         it = 0
         for i in self.players:
-            self.ddata.addPlayer(assign[it],i)
-            self.ddata.addReady(assign[it],False)
+            info = self.sc.api_call("users.info",user=i)
+            self.ddata.addPlayer(assign[it],i,str(info['user']['name']))
+            self.ddata.setReady(assign[it],False)
             it += 1
 
 #============================== Needs Work
     def show(self, opt = None):#needs to implement map generation with the map library
         if(opt): self.command = opt
         if(self.command[1][0] == "M" or self.command[1][0] == "U"):
-            self.ddata.map().saveMap("current_units.png")
+            self.ddata.map.saveMap("current_units.png")
             self.showMap(self.current, "current_units.png")
         elif(self.command[1][0] == "L"):
             self.showMap(self.current, "./images/labeledMap.png")
         else:
-            self.ddata.map().saveMap("current_units.png")
+            self.ddata.map.saveMap("current_units.png")
             self.showMap(self.current, "current_units.png")
 
     def playerReady(self):
         ctry = self.ddata.getCountrybyPID(self.sender)
         if(self.command[0][0] == "N"):
-            self.ddata.addReady(ctry,False)
+            self.ddata.setReady(ctry,False)
         else:
-            self.ddata.addReady(ctry,True)
+            self.ddata.setReady(ctry,True)
         if(self.ddata.isReady()):
             self.current = self.diplomacy
             self.adjudicate()
@@ -224,7 +227,7 @@ class diplomacyBot():
                self.im(self.ddata.getPID(i),"Your unit at "+loc+" needs to retreat")
 
     def winter(self):
-        build(self.ddata)
+        self.game.build(self.ddata)
         self.win() #Check if win conditions are met
         self.show(opt = "map")
         self.send("The "+self.ddata.getSeason().lower().capitalize()+" "+str(self.ddata.getDate())+" season is starting")
@@ -247,29 +250,13 @@ class diplomacyBot():
         if(self.current != self.diplomacy):
             self.send("Adjudication must happen in the diplomacy channel.")
             return
-        if(self.ddata.getSeason() in ["SPRING","FALL"]):
-            if(self.ddata.getResolving() == True):
-                retreat() #handles retreat orders
-                self.ddata.setResolving(False)
-            else:
-                move()
-                if(self.ddata.getRetreats() != []):
-                    self.ddata.setResolving(True)
-                    self.springFall()
-                    self.ddata.reset()
-                    return
-
-            if(self.ddata.getSeason() == "SPRING"):
-                self.ddata.changeSeason()
-                self.springFall()
-            else:
-                self.ddata.changeSeason()
-                self.winter()
-        elif(self.ddata.season == "WINTER"):
-            resolveWinterOrders()
-            self.ddata.changeSeason()
-            self.ddata.incrementDate()
-        self.ddata.reset()
+        which = self.game.adjudicate(self.ddata)
+        if(which):#spring
+            self.springFall()
+        elif(which is False):#fall
+            self.winter()
+        elif(which is None): pass #winter
+        return
 
 #=============================== Event Loop and Bones
     def handle_command(self,cmd, channel, sender):
