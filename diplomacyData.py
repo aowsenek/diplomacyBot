@@ -30,6 +30,14 @@ class ddata():
         self.ready = ready#{1:True,2:False#etc}
         self.numBuild = numBuild#{1:4,2:6 etc}
         self.map = map_ # map object
+        self.ctries = {1: "Russia",
+                          2: "England",
+                          3: "Germany",
+                          4: "France",
+                          5: "Austria",
+                          6: "Italy",
+                          7: "Turkey"}
+
 
     def getSeason(self):
         return self.season
